@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <string.h>
 #include "stack.h"
 
 enum regen_token_type
@@ -23,27 +22,22 @@ enum regen_token_type
 	type = t;       \
 	goto RET
 
-#define ESCAPE_IDS "0trn"
-#define CHCLASS_IDS "dws"
-
 /// Detects escape sequences of the regen language
-//? The block below acts as an extension of the "_regen_scan_token" method
+//? The method below acts as an extension of the "_regen_scan_token" method
 char _regen_scan_escape(char **iter)
 {
 	if (CURR(*iter) != '\\')
 		return -1;
 
-	char const *escape_ids_iter = strchr(ESCAPE_IDS, NEXT(*iter));
-
-	switch (escape_ids_iter - ESCAPE_IDS)
+	switch (NEXT(*iter))
 	{
-	case 0:
+	case '0':
 		return '\0';
-	case 1:
+	case 't':
 		return '\t';
-	case 2:
+	case 'r':
 		return '\r';
-	case 3:
+	case 'n':
 		return '\n';
 	default:
 		return NEXT(*iter);
@@ -51,6 +45,7 @@ char _regen_scan_escape(char **iter)
 }
 
 /// Detects token constructs of the regen language
+//? The method below acts as the lexer of the regen language
 enum regen_token_type _regen_scan_token(char **iter, struct regen_stack *ctx_stack)
 {
 	size_t iter_off;
@@ -59,23 +54,18 @@ enum regen_token_type _regen_scan_token(char **iter, struct regen_stack *ctx_sta
 	/// Detects default character classes
 	if (CURR(*iter) == '\\')
 	{
-		char const *chclass_ids_iter = strchr(CHCLASS_IDS, NEXT(*iter));
-
-		if (chclass_ids_iter == NULL)
+		iter_off = 2;
+		switch (NEXT(*iter))
 		{
+		case 'd':
+			RET_TYPE(CHCLASS_DIGIT);
+		case 'w':
+			RET_TYPE(CHCLASS_WORD);
+		case 's':
+			RET_TYPE(CHCLASS_SPACE);
+		default:
 			iter_off = 0;
 			RET_TYPE(UNDEFINED);
-		}
-
-		iter_off = 2;
-		switch (chclass_ids_iter - CHCLASS_IDS)
-		{
-		case 0:
-			RET_TYPE(CHCLASS_DIGIT);
-		case 1:
-			RET_TYPE(CHCLASS_WORD);
-		case 2:
-			RET_TYPE(CHCLASS_SPACE);
 		}
 	}
 
@@ -90,7 +80,7 @@ enum regen_token_type _regen_scan_token(char **iter, struct regen_stack *ctx_sta
 	if (CURR(*iter) == ']')
 	{
 		//! Error handler placeholder
-		assert(_regen_stack_empty(ctx_stack) || _regen_stack_peek(ctx_stack) == CHCLASS);
+		assert(_regen_stack_cmp(ctx_stack, CHCLASS));
 
 		_regen_stack_pop(ctx_stack);
 
@@ -100,7 +90,7 @@ enum regen_token_type _regen_scan_token(char **iter, struct regen_stack *ctx_sta
 
 	/// Detects groups
 	if ((CURR(*iter) == '(' || CURR(*iter) == ')') &&
-		!_regen_stack_empty(ctx_stack) && _regen_stack_peek(ctx_stack) == CHCLASS)
+		_regen_stack_cmp(ctx_stack, CHCLASS))
 	{
 		iter_off = 0;
 		RET_TYPE(UNDEFINED);
@@ -115,7 +105,7 @@ enum regen_token_type _regen_scan_token(char **iter, struct regen_stack *ctx_sta
 	if (CURR(*iter) == ')')
 	{
 		//! Error handler placeholder
-		assert(_regen_stack_empty(ctx_stack) || _regen_stack_peek(ctx_stack) == GROUP);
+		assert(_regen_stack_cmp(ctx_stack, GROUP));
 
 		_regen_stack_pop(ctx_stack);
 
@@ -125,7 +115,7 @@ enum regen_token_type _regen_scan_token(char **iter, struct regen_stack *ctx_sta
 
 	/// Detects character class-specific tokens
 	if (CURR(*iter) == '-' &&
-		!_regen_stack_empty(ctx_stack) && _regen_stack_peek(ctx_stack) == CHCLASS)
+		_regen_stack_cmp(ctx_stack, CHCLASS))
 	{
 		iter_off = 1;
 		RET_TYPE(CHCLASS_RANGE);
@@ -133,7 +123,7 @@ enum regen_token_type _regen_scan_token(char **iter, struct regen_stack *ctx_sta
 
 	/// Detects group-specific tokens
 	if (CURR(*iter) == '|' &&
-		!_regen_stack_empty(ctx_stack) && _regen_stack_peek(ctx_stack) == GROUP)
+		_regen_stack_cmp(ctx_stack, GROUP))
 	{
 		iter_off = 1;
 		RET_TYPE(GROUP_SEP);
@@ -145,4 +135,10 @@ enum regen_token_type _regen_scan_token(char **iter, struct regen_stack *ctx_sta
 RET:
 	*iter += iter_off;
 	return type;
+}
+
+void regen_scan_str(const char *str)
+{
+	// TODO: Implement AST, AST_node constructs
+	// TODO: Implement driver code for parser
 }

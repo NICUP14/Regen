@@ -1,5 +1,7 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include "error.h"
 
 enum regen_context
 {
@@ -19,12 +21,25 @@ struct regen_stack
     struct regen_stack_node *head;
 };
 
-int _regen_stack_empty(struct regen_stack *stack)
+void *_regen_stack_init()
+{
+    struct regen_stack *stack = malloc(sizeof(struct regen_stack));
+
+    if (stack != NULL)
+    {
+        stack->len = 0;
+        stack->head = NULL;
+    }
+
+    return stack;
+}
+
+int _regen_stack_empty(const struct regen_stack *stack)
 {
     return stack->len == 0;
 }
 
-enum regen_context _regen_stack_peek(struct regen_stack *stack)
+enum regen_context _regen_stack_peek(const struct regen_stack *stack)
 {
     //! Error handler placeholder
     assert(stack->len > 0);
@@ -32,10 +47,15 @@ enum regen_context _regen_stack_peek(struct regen_stack *stack)
     return stack->head->ctx;
 }
 
-void _regen_stack_free(struct regen_stack *stack)
+int _regen_stack_cmp(const struct regen_stack *stack, enum regen_context ctx)
+{
+    return !_regen_stack_empty(stack) && _regen_stack_peek(stack) == ctx;
+}
+
+void _regen_stack_free(struct regen_stack **stack)
 {
     struct regen_stack_node *temp;
-    struct regen_stack_node *node = stack->head;
+    struct regen_stack_node *node = (*stack)->head;
 
     while (node != NULL)
     {
@@ -45,25 +65,27 @@ void _regen_stack_free(struct regen_stack *stack)
         free(temp);
     }
 
-    stack->len = 0;
-    stack->head = NULL;
+    free(*stack);
+    *stack = NULL;
 }
 
-void _regen_stack_pop(struct regen_stack *stack)
+int _regen_stack_pop(struct regen_stack *stack)
 {
-    //! Error handler placeholder
-    assert(stack->len > 0);
+    if (stack->len == 0)
+        return 0;
 
     stack->len--;
     stack->head = stack->head->next;
+
+    return 1;
 }
 
-void _regen_stack_push(struct regen_stack *stack, enum regen_context ctx)
+int _regen_stack_push(struct regen_stack *stack, enum regen_context ctx)
 {
     struct regen_stack_node *node = malloc(sizeof(struct regen_stack_node));
 
-    //! Error handler placeholder
-    assert(node != NULL);
+    if (node == NULL)
+        return 0;
 
     node->ctx = ctx;
     node->next = stack->head;
@@ -72,6 +94,7 @@ void _regen_stack_push(struct regen_stack *stack, enum regen_context ctx)
         stack->len = 1;
     else
         stack->len++;
-
     stack->head = node;
+
+    return 1;
 }
