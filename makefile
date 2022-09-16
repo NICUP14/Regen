@@ -4,22 +4,22 @@ SOURCE_DIR ?= src
 
 # Project parameters
 PROJECT = main
-SOURCES = $(wildcard $(SOURCE_DIR)/*.c)
-OBJECTS = $(patsubst $(SOURCE_DIR)/%.c, $(BUILD_DIR)/%.o, $(SOURCES))
+SOURCES = $(wildcard $(SOURCE_DIR)/*.cpp)
+OBJECTS = $(patsubst $(SOURCE_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SOURCES))
 
 # Compiler parameters
-CC = gcc
-CFLAGS ?=
-CFLAGS += -std=c99 -g -Wall 
+CXX = g++
+CXXFLAGS ?=
+CXXFLAGS += -g -Wall -Werror
 
-all: clean $(PROJECT)
+default: clean $(PROJECT)
 
-$(PROJECT): $(OBJECTS)
-	$(CC) $^ -o $(BUILD_DIR)/$@
+$(PROJECT) : $(OBJECTS)
+	$(CXX) $^ -o $(BUILD_DIR)/$@
 
-$(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c
+$(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.cpp
 	@mkdir -p $(BUILD_DIR)
-	$(CC) -c $(CFLAGS) $< -o $@
+	$(CXX) -c $(CXXFLAGS) $< -o $@
 
 clean:
 	@rm -vrf $(BUILD_DIR)
