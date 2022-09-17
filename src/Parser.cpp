@@ -1,6 +1,9 @@
 #include "Parser.h"
 
-char RegenParser::scanEscape(std::string::iterator &iter)
+// TODO: Remove nop
+#define nop
+
+inline char RegenParser::scanEscape(std::string::iterator &iter)
 {
     if (*iter != '\\')
         return -1;
@@ -21,7 +24,7 @@ char RegenParser::scanEscape(std::string::iterator &iter)
     }
 }
 
-RegenParser::tokenType RegenParser::scanToken(std::string::iterator &iter, std::stack<contextType> &ctxStack)
+inline RegenParser::tokenType RegenParser::scanToken(std::string::iterator &iter, std::stack<contextType> &ctxStack)
 {
     short iterOff;
     enum tokenType type;
@@ -130,4 +133,76 @@ RegenParser::tokenType RegenParser::scanToken(std::string::iterator &iter, std::
 
     iter += iterOff;
     return type;
+}
+
+inline RegenAST::ASTNode RegenParser::parseExpression(std::string &expression)
+{
+    // TODO: Should also handle the empty expression case
+
+    std::string literalBuff(nullptr, expression.size());
+    std::stack<RegenParser::contextType> ctxStack;
+    RegenAST::ASTNode root{RegenAST::nodeType::ENTRY, root};
+    RegenAST::ASTNode &nodeRef = root;
+
+    char lastClassCh = '\0';
+    bool ClassRangeFlag = false;
+
+    auto iter = expression.begin();
+    while (iter != expression.end())
+    {
+        tokenType type = RegenParser::scanToken(iter, ctxStack);
+
+        if (type == tokenType::UNDEFINED)
+        {
+            if (ClassRangeFlag)
+            {
+                nodeRef.Data.SetChSet(lastClassCh, *iter);
+                ClassRangeFlag = false;
+            }
+
+            literalBuff += *iter;
+            iter++;
+        }
+        else
+        {
+            ClassRangeFlag = false;
+
+            switch (type)
+            {
+            case tokenType::CHCLASS_BEGIN:
+                nodeRef.Children.emplace_back(RegenAST::nodeType::CHCLASS, nodeRef);
+                nodeRef = nodeRef.Children.back();
+                break;
+
+            case tokenType::CHCLASS_END:
+                nodeRef = nodeRef.Parent;
+                break;
+
+            case tokenType::CHCLASS_RANGE:
+                ClassRangeFlag = true;
+                break;
+
+            default:
+                break;
+            }
+
+            // TODO: Also treat CHCLASS case
+            if (!literalBuff.empty())
+                break;
+
+            if (!ctxStack.empty() && ctxStack.top() == contextType::CHCLASS)
+            {
+                nodeRef.Data.SetChSet(literalBuff);
+                lastClassCh = literalBuff.back();
+            }
+            else
+                nodeRef.Children.emplace_back(RegenAST::nodeType::LITERAL, nodeRef);
+            literalBuff.clear();
+        }
+    }
+
+    if (!ctxStack.empty())
+        throw RegenException::ContextMismatchException();
+
+    return root;
 }
