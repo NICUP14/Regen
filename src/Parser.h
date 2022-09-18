@@ -1,9 +1,12 @@
 #include <iostream>
 #include <functional>
 #include <string>
+#include <vector>
 #include <stack>
+#include <memory>
 #include "AST.h"
 #include "Exception.h"
+#include "Output.h"
 
 #ifndef REGEN_PARSER_HEADER_H
 #define REGEN_PARSER_HEADER_H
@@ -37,15 +40,21 @@ namespace RegenParser
     /// @param iter A modifiable iterator to a regen expression
     /// @return The character equivalent of the escape sequence
     //? The method below acts as an extension of the "scanToken" method char
-    inline char scanEscape(std::string::iterator &iter);
+    char scanEscape(std::string::iterator &iter, const std::string::iterator &endIter);
 
     /// @brief Converts regen language constructs to their token counterpart
     /// @param iter A modifiable iterator to a regen expression
     /// @param ctxStack A stack used to keep count of nested context groups
     /// @return The character equivalent of the escape sequence
-    inline tokenType scanToken(std::string::iterator &iter, std::stack<contextType> &ctxStack);
+    tokenType scanToken(std::string::iterator &iter, const std::string::iterator &endIter, std::stack<contextType> &ctxStack);
 
-    inline RegenAST::ASTNode parseExpression(std::string &expression);
+    // TODO: Make these methods private
+    std::shared_ptr<RegenAST::ASTNode> CreateLiteralNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id, std::string str);
+    std::shared_ptr<RegenAST::ASTNode> CreateChClassNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id);
+    void NormalizeAST(const std::vector<std::shared_ptr<RegenAST::ASTNode>> &nodeRefVec);
+
+    std::shared_ptr<RegenAST::ASTNode>
+    parseExpression(std::string &expression);
 
 }
 

@@ -1,8 +1,12 @@
 #include <list>
 #include <bitset>
 #include <algorithm>
+#include <memory>
 #include <functional>
 #include "Exception.h"
+
+// TODO: Remove iostream import
+#include <iostream>
 
 #ifndef REGEN_AST_HEADER_H
 #define REGEN_AST_HEADER_H
@@ -16,36 +20,44 @@ namespace RegenAST
         CHCLASS
     };
 
-    const short BIT_SIZE = 8;
-    const size_t CH_SET_SIZE = sizeof(wchar_t) * BIT_SIZE;
+    const size_t CH_SET_SIZE = 256;
 
     class ASTNodeData
     {
     public:
-        nodeType GetNodeType();
-
         //? Additional checking with type
+        bool Empty();
+        nodeType GetNodeType();
+        std::string GetLiteral();
+        void setNodeType(nodeType type);
+        void SetLiteral(const std::string &str);
         void SetChSet(const std::string &str);
         void SetChSet(char startCh, char stopCh);
-        // std::bitset<CH_SET_SIZE> &GetChSet();
-        const std::string GetLiteral();
 
     private:
         nodeType _type;
-        std::string _literal;
         std::bitset<CH_SET_SIZE> _chSet;
+        std::string _literal;
     };
 
     struct ASTNode
     {
-        explicit ASTNode(nodeType type, ASTNode &parent) : Type(type), Parent(parent) {}
+    public:
+        explicit ASTNode(int id, nodeType type, std::shared_ptr<ASTNode> parent) : _id(id), _parent(parent) { Data.setNodeType(type); }
         ASTNode() = default;
         ~ASTNode() = default;
 
-        nodeType Type;
+        int GetId();
+        std::shared_ptr<ASTNode> GetParent();
+        std::list<std::shared_ptr<ASTNode>> &GetChildren();
+        void setParent(std::shared_ptr<ASTNode> parent);
+
         ASTNodeData Data;
-        std::list<ASTNode> Children;
-        std::reference_wrapper<ASTNode> Parent;
+
+    private:
+        int _id;
+        std::shared_ptr<ASTNode> _parent;
+        std::list<std::shared_ptr<ASTNode>> _children;
     };
 
 };

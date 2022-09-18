@@ -1,50 +1,60 @@
 #include <iostream>
-#include <iomanip>
 #include <string>
 #include <vector>
+#include <bitset>
+#include <memory>
+#include "AST.h"
+#include "Parser.h"
 
 // TODO: Refactor the parser + rename exception messages
 // TODO: Test the parser using doctest
 
+const size_t nodeIdSetSize = 50;
+std::bitset<nodeIdSetSize> nodeIdSet;
+
+const std::vector<std::string> nodeTypeToStr{
+	"ENTRY",
+	"LITERAL",
+	"CHCLASS"};
+
+void printASTNode(std::shared_ptr<RegenAST::ASTNode> nodeRef)
+{
+	std::cout << "Node " << nodeRef.get()->GetId() << ":\n";
+	if (nodeRef.get()->GetParent() != nullptr)
+		std::cout << '\t';
+	std::cout << "Type -> " << nodeTypeToStr.at((int)nodeRef.get()->Data.GetNodeType()) << ";\n";
+	if (nodeRef.get()->GetParent() != nullptr)
+		std::cout << '\t';
+	std::cout << "Literal -> " << nodeRef.get()->Data.GetLiteral() << ";\n";
+
+	for (const auto &child : nodeRef.get()->GetChildren())
+	{
+		if (nodeRef.get()->GetParent() != nullptr)
+			std::cout << '\t';
+		std::cout << "Child -> " << child.get()->GetId() << ";\n";
+	}
+
+	std::cout << '\n';
+}
+
+void traverseAST(std::shared_ptr<RegenAST::ASTNode> node)
+{
+	nodeIdSet.set(node.get()->GetId(), true);
+	printASTNode(node);
+
+	for (const auto &child : node.get()->GetChildren())
+		if (!nodeIdSet.test(child.get()->GetId()))
+			traverseAST(child);
+}
+
 int main()
 {
-	// // 	std::string expression;
-	// // 	std::stack<RegenParser::contextType> ctxStack;
-	// //
-	// // 	std::vector<const char *> tokenTypeToStr{
-	// // 		"UNDEFINED",
-	// // 		"GROUP_BEGIN",
-	// // 		"GROUP_END",
-	// // 		"GROUP_SEP",
-	// // 		"CHCLASS_WORD",
-	// // 		"CHCLASS_SPACE",
-	// // 		"CHCLASS_DIGIT",
-	// // 		"CHCLASS_RANGE",
-	// // 		"CHCLASS_BEGIN",
-	// // 		"CHCLASS_END"};
-	// //
-	// // 	std::vector<const char *> contextTypeToStr{
-	// // 		"CHCLASS",
-	// // 		"GROUP"};
-	// //
-	// // 	std::getline(std::cin, expression);
-	// // 	auto iter = expression.begin();
-	// //
-	// // 	while (iter != expression.end())
-	// // 	{
-	// // 		std::string ctxStr = (ctxStack.empty() ? "NONE" : contextTypeToStr.at((int)ctxStack.top()));
-	// // 		std::string typeStr = tokenTypeToStr.at((int)RegenParser::scanToken(iter, ctxStack));
-	// //
-	// // 		std::cout << "CTX: " << ctxStr << ", ";
-	// // 		std::cout << (ctxStr == "NONE" ? "   " : ""); //? Temporary width adjustment
-	// // 		std::cout << (ctxStr == "GROUP" ? "  " : ""); //? Temporary width adjustment
-	// // 		std::cout << "TYPE: " << typeStr << '\n';
-	// //
-	// // 		iter += typeStr == "UNDEFINED";
-	// // 	}
 
-	// // TODO: Write some tests to check the parser's behaviour
-	// // TEST_CASE("")
+	std::string expression;
+	std::getline(std::cin, expression);
+
+	auto root = RegenParser::parseExpression(expression);
+	traverseAST(root);
 
 	return 0;
 }
