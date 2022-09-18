@@ -73,8 +73,11 @@ RegenParser::tokenType RegenParser::scanToken(std::string::iterator &iter, const
     {
     //? CHCLASS_BEGIN handler placeholder
     case '[':
+        if (iter + 1 < endIter && *(iter + 1) == '^')
+            setOffNType(2, tokenType::NCHCLASS_BEGIN);
+        else
+            setOffNType(1, tokenType::CHCLASS_BEGIN);
         ctxStack.push(contextType::CHCLASS);
-        setOffNType(1, tokenType::CHCLASS_BEGIN);
         break;
 
     //? CHCLASS_END handler placeholder
@@ -83,8 +86,8 @@ RegenParser::tokenType RegenParser::scanToken(std::string::iterator &iter, const
             throw RegenException::ContextMismatchException();
         else
         {
-            ctxStack.pop();
             setOffNType(1, tokenType::CHCLASS_END);
+            ctxStack.pop();
         }
         break;
 
@@ -166,8 +169,10 @@ void RegenParser::NormalizeAST(const std::vector<std::shared_ptr<RegenAST::ASTNo
         if (nodeRef.get()->Data.Empty())
         {
             std::shared_ptr<RegenAST::ASTNode> parentRef = nodeRef.get()->GetParent();
-            // parentRef.get()->GetChildren().pop_back();
+
+            //? Might be inefficient
             parentRef.get()->GetChildren().remove(nodeRef);
+
             for (auto &childRef : nodeRef.get()->GetChildren())
             {
                 childRef.get()->setParent(parentRef);
@@ -193,7 +198,8 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::parseExpression(std::string &exp
 
     char lastChClassCh = '\0';
     bool chClassRangeFlag = false;
-    bool createChClassNodeFlag = false;
+    bool createNodeFlag = false;
+    tokenType prevType = tokenType::UNDEFINED;
 
     auto iter = expression.begin();
     auto endIter = expression.end();
@@ -203,6 +209,7 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::parseExpression(std::string &exp
 
         if (type == tokenType::UNDEFINED)
         {
+            // TODO: Determine other way to return error for scanEscape
             char escapeCh = scanEscape(iter, endIter);
             char ch = escapeCh == -1 ? *iter : escapeCh;
 
@@ -212,30 +219,51 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::parseExpression(std::string &exp
         }
         else
         {
-            chClassRangeFlag = false;
-            createChClassNodeFlag = false;
-
             switch (type)
             {
             case tokenType::CHCLASS_BEGIN:
-                createChClassNodeFlag = true;
+                createNodeFlag = true;
+                prevType = tokenType::CHCLASS_BEGIN;
                 break;
 
             case tokenType::CHCLASS_END:
                 if (!literalBuff.empty())
                 {
-                    nodeRef.get()->Data.SetChSet(literalBuff);
+                    if (prevType == RegenParser::tokenType::CHCLASS_BEGIN)
+                        nodeRef.get()->Data.SetChSet(literalBuff);
+                    else if (prevType == RegenParser::tokenType::NCHCLASS_BEGIN)
+                        nodeRef.get()->Data.SetChSet(literalBuff, true);
                     literalBuff.clear();
                 }
                 else
                 {
-                    if (RegenOutput::OUTPUT_ENABLED)
+                    if (prevType == RegenParser::tokenType::CHCLASS_BEGIN && RegenOutput::OUTPUT_ENABLED)
                         RegenOutput::CerrWarning(RegenOutput::CHCLASS_EMPTY_WARNING);
+                    if (prevType == RegenParser::tokenType::NCHCLASS_BEGIN && RegenOutput::OUTPUT_ENABLED)
+                        RegenOutput::CerrWarning(RegenOutput::NCHCLASS_EMPTY_WARNING);
                 }
+                prevType = tokenType::UNDEFINED;
+                break;
+
+            case tokenType::NCHCLASS_BEGIN:
+                createNodeFlag = true;
+                prevType = tokenType::NCHCLASS_BEGIN;
                 break;
 
             case tokenType::CHCLASS_RANGE:
                 chClassRangeFlag = true;
+                break;
+
+            case tokenType::CHCLASS_DIGIT:
+                createNodeFlag = true;
+                break;
+
+            case tokenType::CHCLASS_WORD:
+                createNodeFlag = true;
+                break;
+
+            case tokenType::CHCLASS_SPACE:
+                createNodeFlag = true;
                 break;
 
             default:
@@ -246,7 +274,11 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::parseExpression(std::string &exp
             {
                 if (chClassRangeFlag)
                 {
-                    nodeRef.get()->Data.SetChSet(lastChClassCh, *iter);
+                    if (prevType == tokenType::CHCLASS_BEGIN)
+                        nodeRef.get()->Data.SetChSet(lastChClassCh, *iter);
+                    else if (prevType == tokenType::NCHCLASS_BEGIN)
+                        nodeRef.get()->Data.SetChSet(lastChClassCh, *iter, true);
+
                     chClassRangeFlag = false;
                 }
                 else
@@ -258,11 +290,39 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::parseExpression(std::string &exp
                 }
             }
 
-            if (createChClassNodeFlag)
+            if (createNodeFlag)
             {
                 currId++;
                 nodeRef = CreateChClassNode(nodeRef, currId);
+
+                if (prevType == tokenType::NCHCLASS_BEGIN)
+                    nodeRef.get()->Data.FillChSet(true);
+
+                switch (type)
+                {
+                case RegenParser::tokenType::CHCLASS_DIGIT:
+                    nodeRef.get()->Data.SetChSet('0', '9');
+                    break;
+
+                case RegenParser::tokenType::CHCLASS_WORD:
+                    nodeRef.get()->Data.SetChSet('a', 'z');
+                    nodeRef.get()->Data.SetChSet('A', 'Z');
+                    nodeRef.get()->Data.SetChSet('0', '9');
+                    nodeRef.get()->Data.SetChSet('_');
+                    break;
+
+                case RegenParser::tokenType::CHCLASS_SPACE:
+                    nodeRef.get()->Data.SetChSet(' ');
+                    nodeRef.get()->Data.SetChSet('\n');
+                    nodeRef.get()->Data.SetChSet('\t');
+                    break;
+
+                default:
+                    break;
+                }
+
                 nodeRefVec.push_back(nodeRef);
+                createNodeFlag = false;
             }
         }
     }

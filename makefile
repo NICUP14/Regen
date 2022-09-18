@@ -12,7 +12,7 @@ CXX = g++
 CXXFLAGS ?=
 CXXFLAGS += -g -Wall -I include
 
-default: clean $(PROJECT)
+default: $(PROJECT)
 
 $(PROJECT) : $(OBJECTS)
 	$(CXX) $^ -o $(BUILD_DIR)/$@

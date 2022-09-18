@@ -17,10 +17,10 @@ namespace RegenAST
     {
         ENTRY,
         LITERAL,
-        CHCLASS
+        CHCLASS,
     };
 
-    const size_t CH_SET_SIZE = 256;
+    const size_t CH_SET_SIZE = 255;
 
     class ASTNodeData
     {
@@ -31,8 +31,10 @@ namespace RegenAST
         std::string GetLiteral();
         void setNodeType(nodeType type);
         void SetLiteral(const std::string &str);
-        void SetChSet(const std::string &str);
-        void SetChSet(char startCh, char stopCh);
+        void FillChSet(bool value = false);
+        void SetChSet(char ch, bool invertFlag = false);
+        void SetChSet(const std::string &str, bool invertFlag = false);
+        void SetChSet(char startCh, char stopCh, bool invertFlag = false);
 
     private:
         nodeType _type;

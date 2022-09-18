@@ -17,6 +17,7 @@ namespace RegenOutput
     const std::string ANSI_PURPLE = R"(\e[0;35m)";
 
     const std::string CHCLASS_EMPTY_WARNING = "CHCLASS_EMPTY_WARNING";
+    const std::string NCHCLASS_EMPTY_WARNING = "CHCLASS_EMPTY_WARNING";
 
     void CoutSuccess(const std::string &message);
     void CerrWarning(const std::string &message);
