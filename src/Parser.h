@@ -25,6 +25,9 @@ namespace RegenParser
         CHCLASS_DIGIT,
         CHCLASS_AND,
         CHCLASS_RANGE,
+        NCHCLASS_WORD,
+        NCHCLASS_SPACE,
+        NCHCLASS_DIGIT,
         NCHCLASS_BEGIN,
         CHCLASS_BEGIN,
         CHCLASS_END

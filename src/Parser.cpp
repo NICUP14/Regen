@@ -47,6 +47,15 @@ RegenParser::tokenType RegenParser::scanToken(std::string::iterator &iter, const
         case 's':
             type = tokenType::CHCLASS_SPACE;
             break;
+        case 'D':
+            type = tokenType::NCHCLASS_DIGIT;
+            break;
+        case 'W':
+            type = tokenType::NCHCLASS_WORD;
+            break;
+        case 'S':
+            type = tokenType::NCHCLASS_SPACE;
+            break;
         default:
             iterOff = 0;
             type = tokenType::UNDEFINED;
@@ -266,6 +275,18 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::parseExpression(std::string &exp
                 createNodeFlag = true;
                 break;
 
+            case tokenType::NCHCLASS_DIGIT:
+                createNodeFlag = true;
+                break;
+
+            case tokenType::NCHCLASS_WORD:
+                createNodeFlag = true;
+                break;
+
+            case tokenType::NCHCLASS_SPACE:
+                createNodeFlag = true;
+                break;
+
             default:
                 break;
             }
@@ -294,7 +315,6 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::parseExpression(std::string &exp
             {
                 currId++;
                 nodeRef = CreateChClassNode(nodeRef, currId);
-
                 if (prevType == tokenType::NCHCLASS_BEGIN)
                     nodeRef.get()->Data.FillChSet(true);
 
@@ -315,6 +335,26 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::parseExpression(std::string &exp
                     nodeRef.get()->Data.SetChSet(' ');
                     nodeRef.get()->Data.SetChSet('\n');
                     nodeRef.get()->Data.SetChSet('\t');
+                    break;
+
+                case RegenParser::tokenType::NCHCLASS_DIGIT:
+                    nodeRef.get()->Data.FillChSet(true);
+                    nodeRef.get()->Data.SetChSet('0', '9', true);
+                    break;
+
+                case RegenParser::tokenType::NCHCLASS_WORD:
+                    nodeRef.get()->Data.FillChSet(true);
+                    nodeRef.get()->Data.SetChSet('a', 'z', true);
+                    nodeRef.get()->Data.SetChSet('A', 'Z', true);
+                    nodeRef.get()->Data.SetChSet('0', '9', true);
+                    nodeRef.get()->Data.SetChSet('_', true);
+                    break;
+
+                case RegenParser::tokenType::NCHCLASS_SPACE:
+                    nodeRef.get()->Data.FillChSet(true);
+                    nodeRef.get()->Data.SetChSet(' ', true);
+                    nodeRef.get()->Data.SetChSet('\n', true);
+                    nodeRef.get()->Data.SetChSet('\t', true);
                     break;
 
                 default:
