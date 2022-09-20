@@ -3,7 +3,7 @@
 // TODO: Remove nop
 #define nop
 
-char RegenParser::scanEscape(std::string::iterator &iter, const std::string::iterator &endIter)
+char RegenParser::Parser::_scanEscape(std::string::iterator &iter, const std::string::iterator &endIter)
 {
     if (*iter != '\\' || iter + 1 == endIter)
         return -1;
@@ -24,7 +24,7 @@ char RegenParser::scanEscape(std::string::iterator &iter, const std::string::ite
     }
 }
 
-RegenParser::tokenType RegenParser::scanToken(std::string::iterator &iter, const std::string::iterator &endIter, std::stack<contextType> &ctxStack)
+RegenParser::tokenType RegenParser::Parser::_scanToken(std::string::iterator &iter, const std::string::iterator &endIter, std::stack<contextGroup> &ctxStack)
 {
     short iterOff;
     enum tokenType type;
@@ -73,7 +73,7 @@ RegenParser::tokenType RegenParser::scanToken(std::string::iterator &iter, const
     };
 
     /// @brief Shorthand for the stack context checking condition
-    auto cmpStackTop = [](const std::stack<contextType> &stack, enum contextType ctx)
+    auto cmpStackTop = [](const std::stack<contextGroup> &stack, enum contextGroup ctx)
     {
         return !stack.empty() && stack.top() == ctx;
     };
@@ -86,12 +86,12 @@ RegenParser::tokenType RegenParser::scanToken(std::string::iterator &iter, const
             setOffNType(2, tokenType::NCHCLASS_BEGIN);
         else
             setOffNType(1, tokenType::CHCLASS_BEGIN);
-        ctxStack.push(contextType::CHCLASS);
+        ctxStack.push(contextGroup::CHCLASS);
         break;
 
     //? CHCLASS_END handler placeholder
     case ']':
-        if (!cmpStackTop(ctxStack, contextType::CHCLASS))
+        if (!cmpStackTop(ctxStack, contextGroup::CHCLASS))
             throw RegenException::ContextMismatchException();
         else
         {
@@ -102,7 +102,7 @@ RegenParser::tokenType RegenParser::scanToken(std::string::iterator &iter, const
 
     //? CHCLASS_SEP handler placeholder
     case '-':
-        if (!cmpStackTop(ctxStack, RegenParser::contextType::CHCLASS))
+        if (!cmpStackTop(ctxStack, RegenParser::contextGroup::CHCLASS))
             setOffNType(0, tokenType::UNDEFINED);
         else
             setOffNType(1, tokenType::CHCLASS_RANGE);
@@ -110,22 +110,22 @@ RegenParser::tokenType RegenParser::scanToken(std::string::iterator &iter, const
 
     //? GROUP_BEGIN handler placeholder
     case '(':
-        if (cmpStackTop(ctxStack, contextType::CHCLASS))
+        if (cmpStackTop(ctxStack, contextGroup::CHCLASS))
             setOffNType(0, tokenType::UNDEFINED);
         else
         {
-            ctxStack.push(contextType::GROUP);
+            ctxStack.push(contextGroup::GROUP);
             setOffNType(1, tokenType::GROUP_BEGIN);
         }
         break;
 
     //? GROUP_END handler placeholder
     case ')':
-        if (cmpStackTop(ctxStack, contextType::CHCLASS))
+        if (cmpStackTop(ctxStack, contextGroup::CHCLASS))
             setOffNType(0, tokenType::UNDEFINED);
         else
         {
-            if (!cmpStackTop(ctxStack, contextType::GROUP))
+            if (!cmpStackTop(ctxStack, contextGroup::GROUP))
                 throw RegenException::ContextMismatchException();
             else
                 setOffNType(1, tokenType::GROUP_END);
@@ -134,7 +134,7 @@ RegenParser::tokenType RegenParser::scanToken(std::string::iterator &iter, const
 
     //? GROUP_SEP handler placeholder
     case '|':
-        if (!cmpStackTop(ctxStack, contextType::GROUP))
+        if (!cmpStackTop(ctxStack, contextGroup::GROUP))
             setOffNType(0, tokenType::UNDEFINED);
         else
             setOffNType(1, tokenType::GROUP_SEP);
@@ -149,61 +149,61 @@ RegenParser::tokenType RegenParser::scanToken(std::string::iterator &iter, const
     return type;
 }
 
-std::shared_ptr<RegenAST::ASTNode> RegenParser::CreateLiteralNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id, std::string str)
+std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::_createLiteralNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id, std::string str)
 {
-    auto childRef = std::make_shared<RegenAST::ASTNode>(id, RegenAST::nodeType::LITERAL, nodeRef);
-    childRef.get()->Data.SetLiteral(str);
-    nodeRef.get()->GetChildren().emplace_back(childRef);
+    auto childRef = std::make_shared<RegenAST::ASTNode>(id, RegenAST::NodeType::LITERAL, nodeRef);
+    childRef.get()->GetDataRef().SetLiteral(str);
+    nodeRef.get()->GetChildrenRef().emplace_back(childRef);
 
     return childRef;
 }
 
-std::shared_ptr<RegenAST::ASTNode> RegenParser::CreateChClassNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id)
+std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::_createChClassNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id)
 {
-    auto childRef = std::make_shared<RegenAST::ASTNode>(id, RegenAST::nodeType::CHCLASS, nodeRef);
-    nodeRef.get()->GetChildren().emplace_back(childRef);
+    auto childRef = std::make_shared<RegenAST::ASTNode>(id, RegenAST::NodeType::CHCLASS, nodeRef);
+    nodeRef.get()->GetChildrenRef().emplace_back(childRef);
 
     return childRef;
 }
 
-void RegenParser::NormalizeAST(const std::vector<std::shared_ptr<RegenAST::ASTNode>> &nodeRefVec)
+void RegenParser::Parser::_normalizeAST(const std::vector<std::shared_ptr<RegenAST::ASTNode>> &nodeRefVec)
 {
     for (const auto &nodeRef : nodeRefVec)
     {
-        RegenAST::nodeType type = nodeRef.get()->Data.GetNodeType();
+        RegenAST::NodeType type = nodeRef.get()->GetDataRef().GetNodeType();
 
-        if (type == RegenAST::nodeType::ENTRY)
+        if (type == RegenAST::NodeType::ENTRY)
             continue;
 
-        if (nodeRef.get()->Data.Empty())
+        if (nodeRef.get()->GetDataRef().Empty())
         {
-            std::shared_ptr<RegenAST::ASTNode> parentRef = nodeRef.get()->GetParent();
+            std::shared_ptr<RegenAST::ASTNode> parentRef = nodeRef.get()->GetParentRef();
 
             //? Might be inefficient
-            parentRef.get()->GetChildren().remove(nodeRef);
+            parentRef.get()->GetChildrenRef().remove(nodeRef);
 
-            for (auto &childRef : nodeRef.get()->GetChildren())
+            for (auto &childRef : nodeRef.get()->GetChildrenRef())
             {
-                childRef.get()->setParent(parentRef);
-                parentRef.get()->GetChildren().emplace_back(childRef);
+                childRef.get()->SetParent(parentRef);
+                parentRef.get()->GetChildrenRef().emplace_back(childRef);
             }
         }
     }
 }
 
-std::shared_ptr<RegenAST::ASTNode> RegenParser::parseExpression(std::string &expression)
+std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::ParseExpression(std::string &expression)
 {
     // TODO: Should also handle the empty expression case
 
     std::string literalBuff;
-    std::stack<RegenParser::contextType> ctxStack;
+    std::stack<RegenParser::contextGroup> ctxStack;
     std::vector<std::shared_ptr<RegenAST::ASTNode>> nodeRefVec;
-    auto rootRef = std::make_shared<RegenAST::ASTNode>(0, RegenAST::nodeType::ENTRY, nullptr);
+    auto rootRef = std::make_shared<RegenAST::ASTNode>(0, RegenAST::NodeType::ENTRY, nullptr);
     std::shared_ptr<RegenAST::ASTNode> nodeRef = rootRef;
     int currId = 0;
 
     // TODO: Remove setParent call
-    rootRef.get()->setParent(rootRef);
+    rootRef.get()->SetParent(rootRef);
 
     char lastChClassCh = '\0';
     bool chClassRangeFlag = false;
@@ -214,12 +214,12 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::parseExpression(std::string &exp
     auto endIter = expression.end();
     while (iter != expression.end())
     {
-        tokenType type = RegenParser::scanToken(iter, endIter, ctxStack);
+        tokenType type = RegenParser::Parser::_scanToken(iter, endIter, ctxStack);
 
         if (type == tokenType::UNDEFINED)
         {
             // TODO: Determine other way to return error for scanEscape
-            char escapeCh = scanEscape(iter, endIter);
+            char escapeCh = _scanEscape(iter, endIter);
             char ch = escapeCh == -1 ? *iter : escapeCh;
 
             lastChClassCh = ch;
@@ -239,9 +239,9 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::parseExpression(std::string &exp
                 if (!literalBuff.empty())
                 {
                     if (prevType == RegenParser::tokenType::CHCLASS_BEGIN)
-                        nodeRef.get()->Data.SetChSet(literalBuff);
+                        nodeRef.get()->GetDataRef().SetChSet(literalBuff);
                     else if (prevType == RegenParser::tokenType::NCHCLASS_BEGIN)
-                        nodeRef.get()->Data.SetChSet(literalBuff, true);
+                        nodeRef.get()->GetDataRef().SetChSet(literalBuff, true);
                     literalBuff.clear();
                 }
                 else
@@ -296,16 +296,16 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::parseExpression(std::string &exp
                 if (chClassRangeFlag)
                 {
                     if (prevType == tokenType::CHCLASS_BEGIN)
-                        nodeRef.get()->Data.SetChSet(lastChClassCh, *iter);
+                        nodeRef.get()->GetDataRef().SetChSet(lastChClassCh, *iter);
                     else if (prevType == tokenType::NCHCLASS_BEGIN)
-                        nodeRef.get()->Data.SetChSet(lastChClassCh, *iter, true);
+                        nodeRef.get()->GetDataRef().SetChSet(lastChClassCh, *iter, true);
 
                     chClassRangeFlag = false;
                 }
                 else
                 {
                     currId++;
-                    nodeRef = CreateLiteralNode(nodeRef, currId, literalBuff);
+                    nodeRef = _createLiteralNode(nodeRef, currId, literalBuff);
                     nodeRefVec.push_back(nodeRef);
                     literalBuff.clear();
                 }
@@ -313,48 +313,54 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::parseExpression(std::string &exp
 
             if (createNodeFlag)
             {
+                // TODO: Handle chclass inside chclass case ([abc[def]] and [^\w])
+                // TODO: Implement chclass intersection token
+                //? Possible request user to use \W instead of [^\w]
+                if (nodeRef.get()->GetDataRef().GetNodeType() != RegenAST::NodeType::CHCLASS)
+                    nop;
+
                 currId++;
-                nodeRef = CreateChClassNode(nodeRef, currId);
+                nodeRef = _createChClassNode(nodeRef, currId);
                 if (prevType == tokenType::NCHCLASS_BEGIN)
-                    nodeRef.get()->Data.FillChSet(true);
+                    nodeRef.get()->GetDataRef().FillChSet(true);
 
                 switch (type)
                 {
                 case RegenParser::tokenType::CHCLASS_DIGIT:
-                    nodeRef.get()->Data.SetChSet('0', '9');
+                    nodeRef.get()->GetDataRef().SetChSet('0', '9');
                     break;
 
                 case RegenParser::tokenType::CHCLASS_WORD:
-                    nodeRef.get()->Data.SetChSet('a', 'z');
-                    nodeRef.get()->Data.SetChSet('A', 'Z');
-                    nodeRef.get()->Data.SetChSet('0', '9');
-                    nodeRef.get()->Data.SetChSet('_');
+                    nodeRef.get()->GetDataRef().SetChSet('a', 'z');
+                    nodeRef.get()->GetDataRef().SetChSet('A', 'Z');
+                    nodeRef.get()->GetDataRef().SetChSet('0', '9');
+                    nodeRef.get()->GetDataRef().SetChSet('_');
                     break;
 
                 case RegenParser::tokenType::CHCLASS_SPACE:
-                    nodeRef.get()->Data.SetChSet(' ');
-                    nodeRef.get()->Data.SetChSet('\n');
-                    nodeRef.get()->Data.SetChSet('\t');
+                    nodeRef.get()->GetDataRef().SetChSet(' ');
+                    nodeRef.get()->GetDataRef().SetChSet('\n');
+                    nodeRef.get()->GetDataRef().SetChSet('\t');
                     break;
 
                 case RegenParser::tokenType::NCHCLASS_DIGIT:
-                    nodeRef.get()->Data.FillChSet(true);
-                    nodeRef.get()->Data.SetChSet('0', '9', true);
+                    nodeRef.get()->GetDataRef().FillChSet(true);
+                    nodeRef.get()->GetDataRef().SetChSet('0', '9', true);
                     break;
 
                 case RegenParser::tokenType::NCHCLASS_WORD:
-                    nodeRef.get()->Data.FillChSet(true);
-                    nodeRef.get()->Data.SetChSet('a', 'z', true);
-                    nodeRef.get()->Data.SetChSet('A', 'Z', true);
-                    nodeRef.get()->Data.SetChSet('0', '9', true);
-                    nodeRef.get()->Data.SetChSet('_', true);
+                    nodeRef.get()->GetDataRef().FillChSet(true);
+                    nodeRef.get()->GetDataRef().SetChSet('a', 'z', true);
+                    nodeRef.get()->GetDataRef().SetChSet('A', 'Z', true);
+                    nodeRef.get()->GetDataRef().SetChSet('0', '9', true);
+                    nodeRef.get()->GetDataRef().SetChSet('_', true);
                     break;
 
                 case RegenParser::tokenType::NCHCLASS_SPACE:
-                    nodeRef.get()->Data.FillChSet(true);
-                    nodeRef.get()->Data.SetChSet(' ', true);
-                    nodeRef.get()->Data.SetChSet('\n', true);
-                    nodeRef.get()->Data.SetChSet('\t', true);
+                    nodeRef.get()->GetDataRef().FillChSet(true);
+                    nodeRef.get()->GetDataRef().SetChSet(' ', true);
+                    nodeRef.get()->GetDataRef().SetChSet('\n', true);
+                    nodeRef.get()->GetDataRef().SetChSet('\t', true);
                     break;
 
                 default:
@@ -370,7 +376,7 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::parseExpression(std::string &exp
     if (!literalBuff.empty())
     {
         currId++;
-        CreateLiteralNode(nodeRef, currId, literalBuff);
+        _createLiteralNode(nodeRef, currId, literalBuff);
         nodeRefVec.push_back(nodeRef);
         nodeRefVec.push_back(nodeRef);
         literalBuff.clear();
@@ -382,7 +388,7 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::parseExpression(std::string &exp
     if (!ctxStack.empty())
         throw RegenException::ContextMismatchException();
 
-    NormalizeAST(nodeRefVec);
+    _normalizeAST(nodeRefVec);
 
     return rootRef;
 }

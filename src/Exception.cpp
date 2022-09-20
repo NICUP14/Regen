@@ -5,6 +5,8 @@ const char *RegenException::ExceptionMessage::ContextMismatch = "ContextMismatch
 const char *RegenException::ExceptionMessage::InvalidRange = "InvalidRangeException";
 const char *RegenException::ExceptionMessage::NodeDataMismatch = "NodeDataMismatchException";
 
+// TODO: Include variable parameters into the custom exception constructors
+
 //? Exception classes declarations
 char const *RegenException::ContextMismatchException::what() const throw()
 {

@@ -10,9 +10,13 @@ OBJECTS = $(patsubst $(SOURCE_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SOURCES))
 # Compiler parameters
 CXX = g++
 CXXFLAGS ?=
-CXXFLAGS += -g -Wall -I include
+CXXFLAGS += -std=c++17 -g -Wall -I include
 
 default: $(PROJECT)
+
+# Useful aliases
+def: default
+cdef: clean default
 
 $(PROJECT) : $(OBJECTS)
 	$(CXX) $^ -o $(BUILD_DIR)/$@

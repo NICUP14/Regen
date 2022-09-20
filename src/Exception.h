@@ -3,8 +3,10 @@
 #ifndef REGEN_EXCEPTION_HEADER_H
 #define REGEN_EXCEPTION_HEADER_H
 
+/// @brief  Encapsulates all the custom exceptions messages and definitions.
 namespace RegenException
 {
+    /// @brief  Encapsulates all the exception messages.
     struct ExceptionMessage
     {
         static const char *ContextMismatch;

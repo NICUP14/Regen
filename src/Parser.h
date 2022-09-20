@@ -11,9 +11,10 @@
 #ifndef REGEN_PARSER_HEADER_H
 #define REGEN_PARSER_HEADER_H
 
+/// @brief Encapsulates all the parser-related methods and custom data types.
 namespace RegenParser
 {
-    /// @brief Lists all the possible token types of the regen language
+    /// @brief Defines all the possible pre-defined types of tokens of the regen language.
     enum class tokenType
     {
         UNDEFINED,
@@ -33,34 +34,42 @@ namespace RegenParser
         CHCLASS_END
     };
 
-    /// @brief Lists all the possible token types of the regen language
-    //? expression constructs can take different token types based on the current context
-    enum class contextType
+    /// @brief Defines all the possible context groups of the regen language.
+    enum class contextGroup
     {
         CHCLASS,
         GROUP
     };
 
-    /// @brief Detects escape sequences defined the regen language
-    /// @param iter A modifiable iterator to a regen expression
-    /// @return The character equivalent of the escape sequence
-    //? The method below acts as an extension of the "scanToken" method char
-    char scanEscape(std::string::iterator &iter, const std::string::iterator &endIter);
+    /*
+     * @brief Encapsulates all the methods used in for parsing a regen expression.
+     * This class acts as the base of the parser.
+     * Inherit this class to extend its functionality.
+     */
+    class Parser
+    {
+    public:
+        /// @return Returns the AST representation of the given regen expression.
+        static std::shared_ptr<RegenAST::ASTNode> ParseExpression(std::string &expression);
 
-    /// @brief Converts regen language constructs to their token counterpart
-    /// @param iter A modifiable iterator to a regen expression
-    /// @param ctxStack A stack used to keep count of nested context groups
-    /// @return The character equivalent of the escape sequence
-    tokenType scanToken(std::string::iterator &iter, const std::string::iterator &endIter, std::stack<contextType> &ctxStack);
+    protected:
+        /// @return Returns the type of token corresponding to the regen language construct pointed by the given modifiable iterator.
+        static tokenType _scanToken(std::string::iterator &iter, const std::string::iterator &endIter, std::stack<contextGroup> &ctxStack);
 
-    // TODO: Make these methods private
-    std::shared_ptr<RegenAST::ASTNode> CreateLiteralNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id, std::string str);
-    std::shared_ptr<RegenAST::ASTNode> CreateChClassNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id);
-    void NormalizeAST(const std::vector<std::shared_ptr<RegenAST::ASTNode>> &nodeRefVec);
+        /// @return Returns the character equivalent of the escape sequence pointed by the given modifiable iterator.
+        static char _scanEscape(std::string::iterator &iter, const std::string::iterator &endIter);
 
-    std::shared_ptr<RegenAST::ASTNode>
-    parseExpression(std::string &expression);
+        /// @param str The string to be stored in the NodeData container.
+        /// @return A shared pointer to the newly created node of type literal.
+        static std::shared_ptr<RegenAST::ASTNode> _createLiteralNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id, std::string str);
 
+        /// @return A shared pointer to the newly created node of type literal.
+        static std::shared_ptr<RegenAST::ASTNode> _createChClassNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id);
+
+        /// @brief Removes or transforms redundant nodes based on the specifications of the regen language.
+        /// @param nodeRefVec The vector used to store the references of the AST's nodes.
+        static void _normalizeAST(const std::vector<std::shared_ptr<RegenAST::ASTNode>> &nodeRefVec);
+    };
 }
 
 #endif
