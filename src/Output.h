@@ -19,9 +19,9 @@ namespace RegenOutput
     const std::string CHCLASS_EMPTY_WARNING = "CHCLASS_EMPTY_WARNING";
     const std::string NCHCLASS_EMPTY_WARNING = "CHCLASS_EMPTY_WARNING";
 
-    void CoutSuccess(const std::string &message);
-    void CerrWarning(const std::string &message);
-    void CerrError(const std::string &message);
+    void FMTPrintSuccess(const std::string &message);
+    void FMTPrintWarning(const std::string &message);
+    void FMTPrintError(const std::string &message);
 };
 
 #endif

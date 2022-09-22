@@ -1,159 +1,324 @@
 #include "Parser.h"
 
-// TODO: Remove nop
-#define nop
-
-char RegenParser::Parser::_scanEscape(std::string::iterator &iter, const std::string::iterator &endIter)
+bool RegenParser::Parser::_scanEscape(std::string::iterator &iterRef, const std::string::iterator &endIterRef, char &escapeSeqRef)
 {
-    if (*iter != '\\' || iter + 1 == endIter)
-        return -1;
+    if (iterRef >= endIterRef)
+        return false;
 
-    iter++;
-    switch (*iter)
+    if (*iterRef != '\\' || iterRef + 1 >= endIterRef)
+        return false;
+
+    iterRef++;
+    switch (*iterRef)
     {
+    //? Null escape sequence placeholder.
     case '0':
-        return '\0';
-    case 't':
-        return '\t';
-    case 'r':
-        return '\r';
+        escapeSeqRef = '\0';
+        break;
+
+    //? Bell/Alarm escape sequence placeholder.
+    case 'a':
+        escapeSeqRef = '\a';
+        break;
+
+    //? Backspace escape sequence placeholder.
+    case 'b':
+        escapeSeqRef = '\b';
+        break;
+
+    //? Newline escape sequence placeholder.
     case 'n':
-        return '\n';
+        escapeSeqRef = '\n';
+        break;
+
+    //? Tab escape sequence placeholder.
+    case 't':
+        escapeSeqRef = '\t';
+        break;
+
+    //? Vertical tab escape sequence placeholder.
+    case 'v':
+        escapeSeqRef = '\v';
+        break;
+
+    //? Form feed escape sequence placeholder.
+    case 'f':
+        escapeSeqRef = '\f';
+        break;
+
+    //? Escape escape sequence placeholder.
+    case 'e':
+        escapeSeqRef = '\e';
+        break;
+
+    //? Carriage return escape sequence placeholder.
+    case 'r':
+        escapeSeqRef = '\r';
+        break;
+
     default:
-        return *iter;
+        escapeSeqRef = *iterRef;
     }
+
+    return true;
 }
 
-RegenParser::tokenType RegenParser::Parser::_scanToken(std::string::iterator &iter, const std::string::iterator &endIter, std::stack<contextGroup> &ctxStack)
+RegenParser::TokenType RegenParser::Parser::_scanDefinedChClass(std::string::iterator &iterRef, const std::string::iterator &endIterRef)
 {
-    short iterOff;
-    enum tokenType type;
+    if (iterRef >= endIterRef)
+        return TokenType::UNDEFINED;
 
-    //? CHCLASS_DIGIT/CHCLASS_WORD/CHCLASS_SPACE handler placeholder
-    if (*iter == '\\')
+    if (*iterRef != '\\' || iterRef + 1 >= endIterRef)
+        return TokenType::UNDEFINED;
+
+    static auto iterPointsTo = [&](const std::string::iterator &iter, char ch)
     {
-        if (iter + 1 == endIter)
-            return RegenParser::tokenType::UNDEFINED;
-
-        iterOff = 2;
-        switch (*(iter + 1))
-        {
-        case 'd':
-            type = tokenType::CHCLASS_DIGIT;
-            break;
-        case 'w':
-            type = tokenType::CHCLASS_WORD;
-            break;
-        case 's':
-            type = tokenType::CHCLASS_SPACE;
-            break;
-        case 'D':
-            type = tokenType::NCHCLASS_DIGIT;
-            break;
-        case 'W':
-            type = tokenType::NCHCLASS_WORD;
-            break;
-        case 'S':
-            type = tokenType::NCHCLASS_SPACE;
-            break;
-        default:
-            iterOff = 0;
-            type = tokenType::UNDEFINED;
-        }
-
-        iter += iterOff;
-        return type;
-    }
-
-    /// @brief Shorthand for iterOff and type assignments
-    auto setOffNType = [&](short newIterOff, enum tokenType newType)
-    {
-        iterOff = newIterOff;
-        type = newType;
+        return iter < endIterRef && *iter == ch;
     };
 
-    /// @brief Shorthand for the stack context checking condition
-    auto cmpStackTop = [](const std::stack<contextGroup> &stack, enum contextGroup ctx)
+    short iterOff = 2;
+    TokenType tokenType;
+
+    /// Detects non-compliant regex pre-defined character class constructs.
+    if (!REGEN_REGEX_COMPLIANT)
+    {
+        switch (*(iterRef + 1))
+        {
+        //? CHCLASS_UPPER check placeholder
+        case 'u':
+            tokenType = TokenType::CHCLASS_UPPER;
+            break;
+
+        //? CHCLASS_LOWER check placeholder
+        case 'l':
+            tokenType = TokenType::CHCLASS_LOWER;
+            break;
+
+        //? CHCLASS_ALNUM/CHCLASS_ALPHA check placeholder
+        case 'a':
+            if (iterPointsTo(iterRef + 2, 'n'))
+            {
+                tokenType = TokenType::CHCLASS_ALNUM;
+                iterOff++;
+            }
+            else
+                tokenType = TokenType::CHCLASS_ALPHA;
+            break;
+
+        //? CHCLASS_PUNCT check placeholder
+        case 'p':
+            tokenType = TokenType::CHCLASS_PUNCT;
+            break;
+
+        //? CHCLASS_CLOSURE check placeholder
+        case 'c':
+            tokenType = TokenType::CHCLASS_CLOSURE;
+            break;
+
+        //? CHCLASS_MATH check placeholder
+        case 'm':
+            tokenType = TokenType::CHCLASS_MATH;
+            break;
+
+        //? NCHCLASS_UPPER check placeholder
+        case 'U':
+            tokenType = TokenType::NCHCLASS_UPPER;
+            break;
+
+        //? NCHCLASS_LOWER check placeholder
+        case 'L':
+            tokenType = TokenType::NCHCLASS_LOWER;
+            break;
+
+        //? NCHCLASS_ALNUM/NCHCLASS_ALPHA check placeholder
+        case 'A':
+            if (iterPointsTo(iterRef + 2, 'N'))
+            {
+                tokenType = TokenType::NCHCLASS_ALNUM;
+                iterOff++;
+            }
+            else
+                tokenType = TokenType::NCHCLASS_ALPHA;
+            break;
+
+        //? NCHCLASS_PUNCT check placeholder
+        case 'P':
+            tokenType = TokenType::NCHCLASS_PUNCT;
+            break;
+
+        //? NCHCLASS_CLOSURE check placeholder
+        case 'C':
+            tokenType = TokenType::NCHCLASS_CLOSURE;
+            break;
+
+        //? NCHCLASS_MATH check placeholder
+        case 'M':
+            tokenType = TokenType::NCHCLASS_MATH;
+            break;
+
+        default:
+            tokenType = TokenType::UNDEFINED;
+            break;
+        }
+
+        if (tokenType != TokenType::UNDEFINED)
+        {
+            iterRef += iterOff;
+            return tokenType;
+        }
+    }
+
+    /// Detects compliant regex pre-defined character class constructs.
+    switch (*(iterRef + 1))
+    {
+    //? CHCLASS_DIGIT check placeholder
+    case 'd':
+        tokenType = TokenType::CHCLASS_DIGIT;
+        break;
+
+    //? CHCLASS_WORD check placeholder
+    case 'w':
+        tokenType = TokenType::CHCLASS_WORD;
+        break;
+
+    //? CHCLASS_SYMBOL/CHCLASS_SPACE check placeholder
+    case 's':
+        if (iterPointsTo(iterRef + 2, 'b'))
+        {
+            tokenType = TokenType::CHCLASS_SYMBOL;
+            iterOff++;
+        }
+        else
+            tokenType = TokenType::CHCLASS_SPACE;
+        break;
+
+    //? NCHCLASS_DIGIT check placeholder
+    case 'D':
+        tokenType = TokenType::NCHCLASS_DIGIT;
+        break;
+
+    //? NCHCLASS_WORD check placeholder
+    case 'W':
+        tokenType = TokenType::NCHCLASS_WORD;
+        break;
+
+    //? NCHCLASS_SYMBOL/NCHCLASS_SPACE check placeholder
+    case 'S':
+        if (iterPointsTo(iterRef + 2, 'B'))
+        {
+            tokenType = TokenType::NCHCLASS_SYMBOL;
+            iterOff++;
+        }
+        else
+            tokenType = TokenType::NCHCLASS_SPACE;
+        break;
+
+    default:
+        return TokenType::UNDEFINED;
+    }
+
+    iterRef += iterOff;
+    return tokenType;
+}
+
+RegenParser::TokenType RegenParser::Parser::_scanOperator(std::string::iterator &iterRef, const std::string::iterator &endIterRef, std::stack<RegenParser::ContextGroup> &ctxGrStackRef)
+{
+    short iterOff;
+    TokenType tokenType;
+
+    /// @brief Shorthand lambda for iterOff and type assignments
+    auto setOffNType = [&](short newIterOff, enum TokenType newType)
+    {
+        iterOff = newIterOff;
+        tokenType = newType;
+    };
+
+    /// @brief Shorthand lambda for the stack context checking condition
+    auto cmpStackTop = [](const std::stack<ContextGroup> &stack, enum ContextGroup ctx)
     {
         return !stack.empty() && stack.top() == ctx;
     };
 
-    switch (*iter)
+    switch (*iterRef)
     {
-    //? CHCLASS_BEGIN handler placeholder
+    //? CHCLASS_BEGIN check placeholder
     case '[':
-        if (iter + 1 < endIter && *(iter + 1) == '^')
-            setOffNType(2, tokenType::NCHCLASS_BEGIN);
+        if (iterRef + 1 < endIterRef && *(iterRef + 1) == '^')
+            setOffNType(2, TokenType::NCHCLASS_BEGIN);
         else
-            setOffNType(1, tokenType::CHCLASS_BEGIN);
-        ctxStack.push(contextGroup::CHCLASS);
+            setOffNType(1, TokenType::CHCLASS_BEGIN);
+        ctxGrStackRef.push(ContextGroup::CHCLASS);
         break;
 
-    //? CHCLASS_END handler placeholder
+    //? CHCLASS_END check placeholder
     case ']':
-        if (!cmpStackTop(ctxStack, contextGroup::CHCLASS))
+        if (!cmpStackTop(ctxGrStackRef, ContextGroup::CHCLASS))
             throw RegenException::ContextMismatchException();
-        else
-        {
-            setOffNType(1, tokenType::CHCLASS_END);
-            ctxStack.pop();
-        }
+        setOffNType(1, TokenType::CHCLASS_END);
+        ctxGrStackRef.pop();
         break;
 
-    //? CHCLASS_SEP handler placeholder
+    //? CHCLASS_SEP check placeholder
     case '-':
-        if (!cmpStackTop(ctxStack, RegenParser::contextGroup::CHCLASS))
-            setOffNType(0, tokenType::UNDEFINED);
-        else
-            setOffNType(1, tokenType::CHCLASS_RANGE);
+        if (cmpStackTop(ctxGrStackRef, RegenParser::ContextGroup::CHCLASS))
+            return TokenType::UNDEFINED;
+        setOffNType(1, TokenType::CHCLASS_RANGE);
         break;
 
-    //? GROUP_BEGIN handler placeholder
+    //? CHCLASS_AND check placeholder
+    case '&':
+        if (iterRef + 1 < endIterRef && *(iterRef + 1) == '&')
+            setOffNType(2, TokenType::CHCLASS_AND);
+        return TokenType::UNDEFINED;
+
+    //? GROUP_BEGIN check placeholder
     case '(':
-        if (cmpStackTop(ctxStack, contextGroup::CHCLASS))
-            setOffNType(0, tokenType::UNDEFINED);
-        else
-        {
-            ctxStack.push(contextGroup::GROUP);
-            setOffNType(1, tokenType::GROUP_BEGIN);
-        }
+        if (cmpStackTop(ctxGrStackRef, ContextGroup::CHCLASS))
+            return TokenType::UNDEFINED;
+        ctxGrStackRef.push(ContextGroup::GROUP);
+        setOffNType(1, TokenType::GROUP_BEGIN);
         break;
 
-    //? GROUP_END handler placeholder
+    //? GROUP_END check placeholder
     case ')':
-        if (cmpStackTop(ctxStack, contextGroup::CHCLASS))
-            setOffNType(0, tokenType::UNDEFINED);
-        else
-        {
-            if (!cmpStackTop(ctxStack, contextGroup::GROUP))
-                throw RegenException::ContextMismatchException();
-            else
-                setOffNType(1, tokenType::GROUP_END);
-        }
+        if (cmpStackTop(ctxGrStackRef, ContextGroup::CHCLASS))
+            return TokenType::UNDEFINED;
+        if (!cmpStackTop(ctxGrStackRef, ContextGroup::GROUP))
+            throw RegenException::ContextMismatchException();
+        setOffNType(1, TokenType::GROUP_END);
         break;
 
-    //? GROUP_SEP handler placeholder
+    //? GROUP_SEP check placeholder
     case '|':
-        if (!cmpStackTop(ctxStack, contextGroup::GROUP))
-            setOffNType(0, tokenType::UNDEFINED);
-        else
-            setOffNType(1, tokenType::GROUP_SEP);
+        if (!cmpStackTop(ctxGrStackRef, ContextGroup::GROUP))
+            return TokenType::UNDEFINED;
+        setOffNType(1, TokenType::GROUP_SEP);
         break;
 
-    //? UNDEFINED handler placeholder
     default:
-        setOffNType(0, tokenType::UNDEFINED);
+        return TokenType::UNDEFINED;
     }
 
-    iter += iterOff;
-    return type;
+    iterRef += iterOff;
+    return tokenType;
 }
 
-std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::_createLiteralNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id, std::string str)
+RegenParser::TokenType RegenParser::Parser::_scanToken(std::string::iterator &iterRef, const std::string::iterator &endIterRef, std::stack<ContextGroup> &ctxGrStackRef)
+{
+    if (iterRef >= endIterRef)
+        return TokenType::UNDEFINED;
+
+    if (TokenType tokenType; (tokenType = _scanDefinedChClass(iterRef, endIterRef)) != TokenType::UNDEFINED)
+        return tokenType;
+
+    return _scanOperator(iterRef, endIterRef, ctxGrStackRef);
+}
+
+std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::_createLiteralNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id, const std::string &str)
 {
     auto childRef = std::make_shared<RegenAST::ASTNode>(id, RegenAST::NodeType::LITERAL, nodeRef);
-    childRef.get()->GetDataRef().SetLiteral(str);
     nodeRef.get()->GetChildrenRef().emplace_back(childRef);
+    childRef.get()->GetDataRef().SetLiteral(str);
 
     return childRef;
 }
@@ -168,20 +333,21 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::_createChClassNode(std::
 
 void RegenParser::Parser::_normalizeAST(const std::vector<std::shared_ptr<RegenAST::ASTNode>> &nodeRefVec)
 {
+    // TODO: Implement transformations
+
     for (const auto &nodeRef : nodeRefVec)
     {
-        RegenAST::NodeType type = nodeRef.get()->GetDataRef().GetNodeType();
-
-        if (type == RegenAST::NodeType::ENTRY)
+        /// Skips entry nodes. (safety check)
+        if (RegenAST::NodeType type = nodeRef.get()->GetDataRef().GetNodeType();
+            type == RegenAST::NodeType::ENTRY)
             continue;
 
+        /// Removes the redundant node.
         if (nodeRef.get()->GetDataRef().Empty())
         {
             std::shared_ptr<RegenAST::ASTNode> parentRef = nodeRef.get()->GetParentRef();
 
-            //? Might be inefficient
             parentRef.get()->GetChildrenRef().remove(nodeRef);
-
             for (auto &childRef : nodeRef.get()->GetChildrenRef())
             {
                 childRef.get()->SetParent(parentRef);
@@ -191,194 +357,264 @@ void RegenParser::Parser::_normalizeAST(const std::vector<std::shared_ptr<RegenA
     }
 }
 
-std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::ParseExpression(std::string &expression)
+void RegenParser::Parser::_setAbsNodeTypeNFlags(RegenParser::TokenType tokenType, RegenParser::AbstractNodeType &absNodeTypeRef, bool &createNodeFlagRef, bool &chClassRangeFlagRef)
 {
-    // TODO: Should also handle the empty expression case
+    if (tokenType == TokenType::CHCLASS_RANGE)
+    {
+        createNodeFlagRef = false;
+        chClassRangeFlagRef = true;
+        absNodeTypeRef = AbstractNodeType::LITERAL;
+        return;
+    }
 
+    createNodeFlagRef = true;
+    chClassRangeFlagRef = false;
+
+    switch (tokenType)
+    {
+    case TokenType::CHCLASS_BEGIN:
+        absNodeTypeRef = AbstractNodeType::CHCLASS;
+        break;
+
+    case TokenType::NCHCLASS_BEGIN:
+        absNodeTypeRef = AbstractNodeType::NCHCLASS;
+        break;
+
+    case TokenType::CHCLASS_END:
+        absNodeTypeRef = AbstractNodeType::LITERAL;
+        break;
+
+    case TokenType::CHCLASS_DIGIT:
+        absNodeTypeRef = AbstractNodeType::CHCLASS_DIGIT;
+        break;
+
+    case TokenType::CHCLASS_WORD:
+        absNodeTypeRef = AbstractNodeType::CHCLASS_WORD;
+        break;
+
+    case TokenType::CHCLASS_SPACE:
+        absNodeTypeRef = AbstractNodeType::CHCLASS_SPACE;
+        break;
+
+    case TokenType::CHCLASS_LOWER:
+        absNodeTypeRef = AbstractNodeType::CHCLASS_LOWER;
+        break;
+
+    case TokenType::CHCLASS_UPPER:
+        absNodeTypeRef = AbstractNodeType::CHCLASS_ALPHA;
+        break;
+
+    case TokenType::CHCLASS_ALNUM:
+        absNodeTypeRef = AbstractNodeType::CHCLASS_ALNUM;
+        break;
+
+    case TokenType::CHCLASS_SYMBOL:
+        absNodeTypeRef = AbstractNodeType::CHCLASS_SYMBOL;
+        break;
+
+    case TokenType::CHCLASS_PUNCT:
+        absNodeTypeRef = AbstractNodeType::CHCLASS_PUNCT;
+        break;
+
+    case TokenType::CHCLASS_CLOSURE:
+        absNodeTypeRef = AbstractNodeType::CHCLASS_CLOSURE;
+        break;
+
+    case TokenType::CHCLASS_MATH:
+        absNodeTypeRef = AbstractNodeType::CHCLASS_MATH;
+        break;
+
+    case TokenType::NCHCLASS_DIGIT:
+        absNodeTypeRef = AbstractNodeType::NCHCLASS_DIGIT;
+        break;
+
+    case TokenType::NCHCLASS_WORD:
+        absNodeTypeRef = AbstractNodeType::NCHCLASS_WORD;
+        break;
+
+    case TokenType::NCHCLASS_SPACE:
+        absNodeTypeRef = AbstractNodeType::NCHCLASS_SPACE;
+        break;
+
+    case TokenType::NCHCLASS_LOWER:
+        absNodeTypeRef = AbstractNodeType::NCHCLASS_LOWER;
+        break;
+
+    case TokenType::NCHCLASS_UPPER:
+        absNodeTypeRef = AbstractNodeType::NCHCLASS_ALPHA;
+        break;
+
+    case TokenType::NCHCLASS_ALNUM:
+        absNodeTypeRef = AbstractNodeType::NCHCLASS_ALNUM;
+        break;
+
+    case TokenType::NCHCLASS_SYMBOL:
+        absNodeTypeRef = AbstractNodeType::NCHCLASS_SYMBOL;
+        break;
+
+    case TokenType::NCHCLASS_PUNCT:
+        absNodeTypeRef = AbstractNodeType::NCHCLASS_PUNCT;
+        break;
+
+    case TokenType::NCHCLASS_CLOSURE:
+        absNodeTypeRef = AbstractNodeType::NCHCLASS_CLOSURE;
+        break;
+
+    case TokenType::NCHCLASS_MATH:
+        absNodeTypeRef = AbstractNodeType::NCHCLASS_MATH;
+        break;
+
+    case TokenType::CHCLASS_RANGE:
+    default:
+        createNodeFlagRef = false;
+        chClassRangeFlagRef = false;
+        break;
+    }
+}
+
+std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::ParseExpression(std::string &expressionRef)
+{
+    // TODO: Implement character class intersections
+
+    if (expressionRef.empty())
+        return nullptr;
+
+    int currId = 0;
     std::string literalBuff;
-    std::stack<RegenParser::contextGroup> ctxStack;
+    std::stack<RegenParser::ContextGroup> ctxStack;
     std::vector<std::shared_ptr<RegenAST::ASTNode>> nodeRefVec;
     auto rootRef = std::make_shared<RegenAST::ASTNode>(0, RegenAST::NodeType::ENTRY, nullptr);
     std::shared_ptr<RegenAST::ASTNode> nodeRef = rootRef;
-    int currId = 0;
 
-    // TODO: Remove setParent call
+    //? The root (entry) node of the AST is circular. (root->Parent == root)
     rootRef.get()->SetParent(rootRef);
 
     char lastChClassCh = '\0';
-    bool chClassRangeFlag = false;
-    bool createNodeFlag = false;
-    tokenType prevType = tokenType::UNDEFINED;
+    bool chClassRangeFlag;
+    bool createNodeFlag;
 
-    auto iter = expression.begin();
-    auto endIter = expression.end();
-    while (iter != expression.end())
+    AbstractNodeType absNodeType;
+    auto iter = expressionRef.begin();
+    auto endIter = expressionRef.end();
+    while (iter != expressionRef.end())
     {
-        tokenType type = RegenParser::Parser::_scanToken(iter, endIter, ctxStack);
+        TokenType tokenType = RegenParser::Parser::_scanToken(iter, endIter, ctxStack);
 
-        if (type == tokenType::UNDEFINED)
+        if (tokenType == TokenType::UNDEFINED)
         {
-            // TODO: Determine other way to return error for scanEscape
-            char escapeCh = _scanEscape(iter, endIter);
-            char ch = escapeCh == -1 ? *iter : escapeCh;
+            char escapeSeq;
+            char resultCh = _scanEscape(iter, endIter, escapeSeq) ? escapeSeq : *iter;
 
-            lastChClassCh = ch;
-            literalBuff += ch;
+            lastChClassCh = resultCh;
+            literalBuff += resultCh;
             iter++;
         }
         else
         {
-            switch (type)
+            _setAbsNodeTypeNFlags(
+                tokenType,
+                absNodeType,
+                createNodeFlag,
+                chClassRangeFlag);
+
+            if (chClassRangeFlag)
+                nodeRef.get()->GetDataRef().SetChSet(lastChClassCh, *iter);
+
+            if (!createNodeFlag)
+                continue;
+
+            currId++;
+            nodeRef = _createChClassNode(nodeRef, currId);
+
+            if (absNodeType == AbstractNodeType::LITERAL && !literalBuff.empty())
             {
-            case tokenType::CHCLASS_BEGIN:
-                createNodeFlag = true;
-                prevType = tokenType::CHCLASS_BEGIN;
+                nodeRef.get()->GetDataRef().SetChSet(literalBuff);
+                literalBuff.clear();
+            }
+
+            if (absNodeType >= AbstractNodeType::NCHCLASS)
+            {
+                nodeRef.get()->GetDataRef().FillChSet(true);
+                nodeRef.get()->GetDataRef().FlipInvertFlag();
+            }
+
+            switch (absNodeType)
+            {
+            case AbstractNodeType::CHCLASS_DIGIT:
+            case AbstractNodeType::NCHCLASS_DIGIT:
+                nodeRef.get()->GetDataRef().SetChSet('0', '9');
                 break;
 
-            case tokenType::CHCLASS_END:
-                if (!literalBuff.empty())
-                {
-                    if (prevType == RegenParser::tokenType::CHCLASS_BEGIN)
-                        nodeRef.get()->GetDataRef().SetChSet(literalBuff);
-                    else if (prevType == RegenParser::tokenType::NCHCLASS_BEGIN)
-                        nodeRef.get()->GetDataRef().SetChSet(literalBuff, true);
-                    literalBuff.clear();
-                }
-                else
-                {
-                    if (prevType == RegenParser::tokenType::CHCLASS_BEGIN && RegenOutput::OUTPUT_ENABLED)
-                        RegenOutput::CerrWarning(RegenOutput::CHCLASS_EMPTY_WARNING);
-                    if (prevType == RegenParser::tokenType::NCHCLASS_BEGIN && RegenOutput::OUTPUT_ENABLED)
-                        RegenOutput::CerrWarning(RegenOutput::NCHCLASS_EMPTY_WARNING);
-                }
-                prevType = tokenType::UNDEFINED;
+            case AbstractNodeType::CHCLASS_WORD:
+            case AbstractNodeType::NCHCLASS_WORD:
+                nodeRef.get()->GetDataRef().SetChSet('a', 'z');
+                nodeRef.get()->GetDataRef().SetChSet('A', 'Z');
+                nodeRef.get()->GetDataRef().SetChSet('0', '9');
+                nodeRef.get()->GetDataRef().SetChSet("_");
                 break;
 
-            case tokenType::NCHCLASS_BEGIN:
-                createNodeFlag = true;
-                prevType = tokenType::NCHCLASS_BEGIN;
+            case AbstractNodeType::CHCLASS_SPACE:
+            case AbstractNodeType::NCHCLASS_SPACE:
+                nodeRef.get()->GetDataRef().SetChSet(CHCLASS_SPACE_STR);
                 break;
 
-            case tokenType::CHCLASS_RANGE:
-                chClassRangeFlag = true;
+            case AbstractNodeType::CHCLASS_LOWER:
+            case AbstractNodeType::NCHCLASS_LOWER:
+                nodeRef.get()->GetDataRef().SetChSet('a', 'z');
                 break;
 
-            case tokenType::CHCLASS_DIGIT:
-                createNodeFlag = true;
+            case AbstractNodeType::CHCLASS_UPPER:
+            case AbstractNodeType::NCHCLASS_UPPER:
+                nodeRef.get()->GetDataRef().SetChSet('A', 'Z');
                 break;
 
-            case tokenType::CHCLASS_WORD:
-                createNodeFlag = true;
+            case AbstractNodeType::CHCLASS_ALPHA:
+            case AbstractNodeType::NCHCLASS_ALPHA:
+                nodeRef.get()->GetDataRef().SetChSet('a', 'z');
+                nodeRef.get()->GetDataRef().SetChSet('A', 'Z');
                 break;
 
-            case tokenType::CHCLASS_SPACE:
-                createNodeFlag = true;
+            case AbstractNodeType::CHCLASS_ALNUM:
+            case AbstractNodeType::NCHCLASS_ALNUM:
+                nodeRef.get()->GetDataRef().SetChSet('a', 'z');
+                nodeRef.get()->GetDataRef().SetChSet('A', 'Z');
+                nodeRef.get()->GetDataRef().SetChSet('0', '9');
                 break;
 
-            case tokenType::NCHCLASS_DIGIT:
-                createNodeFlag = true;
+            case AbstractNodeType::CHCLASS_SYMBOL:
+            case AbstractNodeType::NCHCLASS_SYMBOL:
+                nodeRef.get()->GetDataRef().SetChSet(CHCLASS_SYMBOL_STR);
                 break;
 
-            case tokenType::NCHCLASS_WORD:
-                createNodeFlag = true;
+            case AbstractNodeType::CHCLASS_PUNCT:
+            case AbstractNodeType::NCHCLASS_PUNCT:
+                nodeRef.get()->GetDataRef().SetChSet(CHCLASS_PUNCT_STR);
                 break;
 
-            case tokenType::NCHCLASS_SPACE:
-                createNodeFlag = true;
+            case AbstractNodeType::CHCLASS_CLOSURE:
+            case AbstractNodeType::NCHCLASS_CLOSURE:
+                nodeRef.get()->GetDataRef().SetChSet(CHCLASS_CLOSURE_STR);
+                break;
+
+            case AbstractNodeType::CHCLASS_MATH:
+            case AbstractNodeType::NCHCLASS_MATH:
+                nodeRef.get()->GetDataRef().SetChSet(CHCLASS_MATH_STR);
                 break;
 
             default:
                 break;
             }
 
-            if (!literalBuff.empty())
-            {
-                if (chClassRangeFlag)
-                {
-                    if (prevType == tokenType::CHCLASS_BEGIN)
-                        nodeRef.get()->GetDataRef().SetChSet(lastChClassCh, *iter);
-                    else if (prevType == tokenType::NCHCLASS_BEGIN)
-                        nodeRef.get()->GetDataRef().SetChSet(lastChClassCh, *iter, true);
-
-                    chClassRangeFlag = false;
-                }
-                else
-                {
-                    currId++;
-                    nodeRef = _createLiteralNode(nodeRef, currId, literalBuff);
-                    nodeRefVec.push_back(nodeRef);
-                    literalBuff.clear();
-                }
-            }
-
-            if (createNodeFlag)
-            {
-                // TODO: Handle chclass inside chclass case ([abc[def]] and [^\w])
-                // TODO: Implement chclass intersection token
-                //? Possible request user to use \W instead of [^\w]
-                if (nodeRef.get()->GetDataRef().GetNodeType() != RegenAST::NodeType::CHCLASS)
-                    nop;
-
-                currId++;
-                nodeRef = _createChClassNode(nodeRef, currId);
-                if (prevType == tokenType::NCHCLASS_BEGIN)
-                    nodeRef.get()->GetDataRef().FillChSet(true);
-
-                switch (type)
-                {
-                case RegenParser::tokenType::CHCLASS_DIGIT:
-                    nodeRef.get()->GetDataRef().SetChSet('0', '9');
-                    break;
-
-                case RegenParser::tokenType::CHCLASS_WORD:
-                    nodeRef.get()->GetDataRef().SetChSet('a', 'z');
-                    nodeRef.get()->GetDataRef().SetChSet('A', 'Z');
-                    nodeRef.get()->GetDataRef().SetChSet('0', '9');
-                    nodeRef.get()->GetDataRef().SetChSet('_');
-                    break;
-
-                case RegenParser::tokenType::CHCLASS_SPACE:
-                    nodeRef.get()->GetDataRef().SetChSet(' ');
-                    nodeRef.get()->GetDataRef().SetChSet('\n');
-                    nodeRef.get()->GetDataRef().SetChSet('\t');
-                    break;
-
-                case RegenParser::tokenType::NCHCLASS_DIGIT:
-                    nodeRef.get()->GetDataRef().FillChSet(true);
-                    nodeRef.get()->GetDataRef().SetChSet('0', '9', true);
-                    break;
-
-                case RegenParser::tokenType::NCHCLASS_WORD:
-                    nodeRef.get()->GetDataRef().FillChSet(true);
-                    nodeRef.get()->GetDataRef().SetChSet('a', 'z', true);
-                    nodeRef.get()->GetDataRef().SetChSet('A', 'Z', true);
-                    nodeRef.get()->GetDataRef().SetChSet('0', '9', true);
-                    nodeRef.get()->GetDataRef().SetChSet('_', true);
-                    break;
-
-                case RegenParser::tokenType::NCHCLASS_SPACE:
-                    nodeRef.get()->GetDataRef().FillChSet(true);
-                    nodeRef.get()->GetDataRef().SetChSet(' ', true);
-                    nodeRef.get()->GetDataRef().SetChSet('\n', true);
-                    nodeRef.get()->GetDataRef().SetChSet('\t', true);
-                    break;
-
-                default:
-                    break;
-                }
-
-                nodeRefVec.push_back(nodeRef);
-                createNodeFlag = false;
-            }
+            nodeRefVec.push_back(nodeRef);
+            createNodeFlag = false;
         }
     }
 
-    if (!literalBuff.empty())
+    if (absNodeType == AbstractNodeType::LITERAL && !literalBuff.empty())
     {
         currId++;
-        _createLiteralNode(nodeRef, currId, literalBuff);
-        nodeRefVec.push_back(nodeRef);
-        nodeRefVec.push_back(nodeRef);
+        nodeRef = _createChClassNode(nodeRef, currId);
+        nodeRef.get()->GetDataRef().SetChSet(literalBuff);
         literalBuff.clear();
     }
 

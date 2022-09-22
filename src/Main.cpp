@@ -6,8 +6,16 @@
 #include "AST.h"
 #include "Parser.h"
 
-// TODO: Refactor the parser + rename exception messages
-// TODO: Test the parser using doctest
+/// TODO LIST
+// TODO: Refactor the parser's logic.
+// TODO: Implement AST normalization node transformations. (character class inside character class)
+// TODO: Implement character class intersections.
+// TODO: Warn user user to use \W instead of [^\w]. (bitset hash might help)
+// TODO: Warn user user to use \d instead of [0-9].
+// TODO: Test the parser's behaviour via doctest.
+// TODO: Create the documentation via doxygen.
+
+const bool REGEN_REGEX_COMPLIANT = false;
 
 const size_t nodeIdSetSize = 50;
 std::bitset<nodeIdSetSize> nodeIdSet;

@@ -8,6 +8,8 @@
 #ifndef REGEN_AST_HEADER_H
 #define REGEN_AST_HEADER_H
 
+extern const bool REGEN_REGEX_COMPLIANT;
+
 /// @brief  Encapsulates all the AST-related methods and custom data types.
 namespace RegenAST
 {
@@ -35,6 +37,9 @@ namespace RegenAST
         /// @return Returns the string representation of the current object.
         std::string GetLiteral();
 
+        /// @brief Negates the character set invert flag.
+        void FlipInvertFlag();
+
         /// @brief Sets the node type of the current object to the given type.
         void SetNodeType(NodeType type);
 
@@ -44,22 +49,17 @@ namespace RegenAST
         /// @brief Sets all the vales of the current character class node's set to the given boolean.
         void FillChSet(bool value = false);
 
-        /// @brief Sets the set's value corresponding the given character to true.
-        /// @param invertFlag The boolean parameter used to "invert" the function's behaviour.
-        void SetChSet(char ch, bool invertFlag = false);
-
         /// @brief Sets the set's values corresponding the characters in the given string to true.
-        /// @param invertFlag The boolean parameter used to "invert" the function's behaviour.
-        void SetChSet(const std::string_view &strRO, bool invertFlag = false);
+        void SetChSet(const std::string_view &strRO);
 
         /// @brief Sets the set's values corresponding the range defined by the two the given characters to true.
-        /// @param invertFlag The boolean parameter used to "invert" the function's behaviour.
-        void SetChSet(char startCh, char stopCh, bool invertFlag = false);
+        void SetChSet(char startCh, char stopCh);
 
     private:
         NodeType _nodeType;
         std::bitset<CH_SET_SIZE> _chSet;
         std::string _literal;
+        bool _chSetInvertFlag = false;
     };
 
     /// @brief Represents a node in the AST of a parsed Regen expression.

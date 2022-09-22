@@ -56,6 +56,11 @@ std::string RegenAST::ASTNodeData::GetLiteral()
     return _literal;
 }
 
+void RegenAST::ASTNodeData::FlipInvertFlag()
+{
+    _chSetInvertFlag = true;
+}
+
 void RegenAST::ASTNodeData::SetNodeType(RegenAST::NodeType type)
 {
     _nodeType = type;
@@ -86,34 +91,30 @@ void RegenAST::ASTNodeData::FillChSet(bool value)
         _chSet.set(chRange);
 }
 
-void RegenAST::ASTNodeData::SetChSet(char ch, bool invertFlag)
-{
-    //? Type checker placeholder. (#3)
-    if (_nodeType != RegenAST::NodeType::CHCLASS)
-        throw RegenException::NodeDataMismatchException();
-
-    _chSet.set(ch, !invertFlag);
-}
-
-void RegenAST::ASTNodeData::SetChSet(const std::string_view &strRO, bool invertFlag)
+void RegenAST::ASTNodeData::SetChSet(const std::string_view &strRO)
 {
     //? Type checker placeholder. (#4)
     if (_nodeType != RegenAST::NodeType::CHCLASS)
         throw RegenException::NodeDataMismatchException();
 
     for (auto ch : strRO)
-        _chSet.set(ch, !invertFlag);
+        _chSet.set(ch, !_chSetInvertFlag);
 }
 
-void RegenAST::ASTNodeData::SetChSet(char startCh, char stopCh, bool invertFlag)
+void RegenAST::ASTNodeData::SetChSet(char startCh, char stopCh)
 {
     //? Type checker placeholder. (#5)
     if (_nodeType != RegenAST::NodeType::CHCLASS)
         throw RegenException::NodeDataMismatchException();
 
+    //? "It just works"
+    if (REGEN_REGEX_COMPLIANT && startCh > stopCh)
+        throw RegenException::InvalidRangeException();
+
     if (startCh > stopCh)
         std::swap(startCh, stopCh);
+    else
 
-    for (char chRange = startCh; chRange <= stopCh; chRange++)
-        _chSet.set(chRange, !invertFlag);
+        for (char chRange = startCh; chRange <= stopCh; chRange++)
+            _chSet.set(chRange, !_chSetInvertFlag);
 }
