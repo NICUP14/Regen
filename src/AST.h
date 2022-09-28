@@ -1,14 +1,19 @@
 #include <list>
 #include <bitset>
+#include <string>
+#include <vector>
 #include <memory>
 #include <algorithm>
 #include <functional>
 #include "Exception.h"
 
+// TODO: Remove this import used for debugging
+#include <fmt/printf.h>
+
 #ifndef REGEN_AST_HEADER_H
 #define REGEN_AST_HEADER_H
 
-extern const bool REGEN_REGEX_COMPLIANT;
+extern const bool REGEN_REGEX_COMPLIANT_FLAG;
 
 /// @brief  Encapsulates all the AST-related methods and custom data types.
 namespace RegenAST
@@ -21,6 +26,16 @@ namespace RegenAST
         ENTRY,
         LITERAL,
         CHCLASS,
+    };
+
+    static inline std::string NodeTypeToStr(NodeType nodeType)
+    {
+        static const std::vector<std::string> CONVERSION_VEC{
+            "ENTRY",
+            "LITERAL",
+            "CHCLASS"};
+
+        return CONVERSION_VEC.at((int)nodeType);
     };
 
     /// @brief Represents a container used for storing information about a node.
@@ -37,8 +52,8 @@ namespace RegenAST
         /// @return Returns the string representation of the current object.
         std::string GetLiteral();
 
-        /// @brief Negates the character set invert flag.
-        void FlipInvertFlag();
+        /// @brief Sets the character set invert flag to the specified value.
+        void SetInvertFlag(bool value);
 
         /// @brief Sets the node type of the current object to the given type.
         void SetNodeType(NodeType type);
@@ -57,13 +72,13 @@ namespace RegenAST
 
     private:
         NodeType _nodeType;
-        std::bitset<CH_SET_SIZE> _chSet;
         std::string _literal;
+        std::bitset<CH_SET_SIZE> _chSet;
         bool _chSetInvertFlag = false;
     };
 
     /// @brief Represents a node in the AST of a parsed Regen expression.
-    struct ASTNode
+    struct ASTNode : std::enable_shared_from_this<ASTNode>
     {
     public:
         /// @brief The custom constructor of the ASTNode class.
@@ -80,6 +95,8 @@ namespace RegenAST
 
         /// @return Returns a reference to the internal ASTNodeData container of th current object.
         ASTNodeData &GetDataRef();
+
+        void PropagateMergeFlag();
 
         /// @return Returns a shared pointer to the parent of the curent object.
         std::shared_ptr<ASTNode> GetParentRef();

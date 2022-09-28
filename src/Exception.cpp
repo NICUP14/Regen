@@ -2,25 +2,20 @@
 
 // TODO: Assign the exception messages to something more suggestive.
 
-//? Exception messages declarations
-const char *RegenException::ExceptionMessage::ContextMismatch = "ContextMismatchException";
-const char *RegenException::ExceptionMessage::InvalidRange = "InvalidRangeException";
-const char *RegenException::ExceptionMessage::NodeDataMismatch = "NodeDataMismatchException";
-
 // TODO: Include variable parameters into the custom exception constructors.
 
 //? Exception classes declarations
-char const *RegenException::ContextMismatchException::what() const throw()
+char const *RegenException::UnterminatedConstructException::what() const throw()
 {
-    return ExceptionMessage::ContextMismatch;
+    return _message.c_str();
 }
 
-char const *RegenException::InvalidRangeException::what() const throw()
+char const *RegenException::InvalidRegexRangeException::what() const throw()
 {
-    return ExceptionMessage::InvalidRange;
+    return RegenOutput::ExceptionMessage::INVALID_REGEX_RANGE.c_str();
 }
 
 char const *RegenException::NodeDataMismatchException::what() const throw()
 {
-    return ExceptionMessage::NodeDataMismatch;
+    return _message.c_str();
 }

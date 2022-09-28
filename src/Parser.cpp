@@ -65,22 +65,26 @@ bool RegenParser::Parser::_scanEscape(std::string::iterator &iterRef, const std:
 
 RegenParser::TokenType RegenParser::Parser::_scanDefinedChClass(std::string::iterator &iterRef, const std::string::iterator &endIterRef)
 {
+    if (*iterRef == '\\' && iterRef == endIterRef - 1 && REGEN_REGEX_COMPLIANT_FLAG)
+        throw RegenException::UnterminatedConstructException(ContextGroupToStr(ContextGroup::NONE));
+
     if (iterRef >= endIterRef)
         return TokenType::UNDEFINED;
 
-    if (*iterRef != '\\' || iterRef + 1 >= endIterRef)
+    if (*iterRef != '\\' || iterRef >= endIterRef)
         return TokenType::UNDEFINED;
 
+    /// @brief Shorthand lambda for bound and dereference checking of a string iterator
     static auto iterPointsTo = [&](const std::string::iterator &iter, char ch)
     {
         return iter < endIterRef && *iter == ch;
     };
 
     short iterOff = 2;
-    TokenType tokenType;
+    TokenType tokenType = TokenType::UNDEFINED;
 
     /// Detects non-compliant regex pre-defined character class constructs.
-    if (!REGEN_REGEX_COMPLIANT)
+    if (!REGEN_REGEX_COMPLIANT_FLAG)
     {
         switch (*(iterRef + 1))
         {
@@ -103,6 +107,15 @@ RegenParser::TokenType RegenParser::Parser::_scanDefinedChClass(std::string::ite
             }
             else
                 tokenType = TokenType::CHCLASS_ALPHA;
+            break;
+
+        //? CHCLASS_SYMBOL check placeholder
+        case 's':
+            if (iterPointsTo(iterRef + 2, 'b'))
+            {
+                tokenType = TokenType::CHCLASS_SYMBOL;
+                iterOff++;
+            }
             break;
 
         //? CHCLASS_PUNCT check placeholder
@@ -139,6 +152,15 @@ RegenParser::TokenType RegenParser::Parser::_scanDefinedChClass(std::string::ite
             }
             else
                 tokenType = TokenType::NCHCLASS_ALPHA;
+            break;
+
+        //? NCHCLASS_SYMBOL check placeholder
+        case 'S':
+            if (iterPointsTo(iterRef + 2, 'B'))
+            {
+                tokenType = TokenType::NCHCLASS_SYMBOL;
+                iterOff++;
+            }
             break;
 
         //? NCHCLASS_PUNCT check placeholder
@@ -181,15 +203,9 @@ RegenParser::TokenType RegenParser::Parser::_scanDefinedChClass(std::string::ite
         tokenType = TokenType::CHCLASS_WORD;
         break;
 
-    //? CHCLASS_SYMBOL/CHCLASS_SPACE check placeholder
+    //? CHCLASS_SPACE check placeholder
     case 's':
-        if (iterPointsTo(iterRef + 2, 'b'))
-        {
-            tokenType = TokenType::CHCLASS_SYMBOL;
-            iterOff++;
-        }
-        else
-            tokenType = TokenType::CHCLASS_SPACE;
+        tokenType = TokenType::CHCLASS_SPACE;
         break;
 
     //? NCHCLASS_DIGIT check placeholder
@@ -202,15 +218,9 @@ RegenParser::TokenType RegenParser::Parser::_scanDefinedChClass(std::string::ite
         tokenType = TokenType::NCHCLASS_WORD;
         break;
 
-    //? NCHCLASS_SYMBOL/NCHCLASS_SPACE check placeholder
+    //? NCHCLASS_SPACE check placeholder
     case 'S':
-        if (iterPointsTo(iterRef + 2, 'B'))
-        {
-            tokenType = TokenType::NCHCLASS_SYMBOL;
-            iterOff++;
-        }
-        else
-            tokenType = TokenType::NCHCLASS_SPACE;
+        tokenType = TokenType::NCHCLASS_SPACE;
         break;
 
     default:
@@ -221,10 +231,16 @@ RegenParser::TokenType RegenParser::Parser::_scanDefinedChClass(std::string::ite
     return tokenType;
 }
 
-RegenParser::TokenType RegenParser::Parser::_scanOperator(std::string::iterator &iterRef, const std::string::iterator &endIterRef, std::stack<RegenParser::ContextGroup> &ctxGrStackRef)
+RegenParser::TokenType RegenParser::Parser::_scanOperator(const std::string::iterator &beginIterRO, const std::string::iterator &endIterRO, std::string::iterator &iterRef, std::stack<RegenParser::ContextGroup> &ctxGrStackRef)
 {
     short iterOff;
     TokenType tokenType;
+
+    /// @brief Shorthand lambda for bound and dereference checking of a string iterator
+    static auto iterPointsTo = [&](const std::string::iterator &iter, char ch)
+    {
+        return iter < endIterRO && *iter == ch;
+    };
 
     /// @brief Shorthand lambda for iterOff and type assignments
     auto setOffNType = [&](short newIterOff, enum TokenType newType)
@@ -234,16 +250,16 @@ RegenParser::TokenType RegenParser::Parser::_scanOperator(std::string::iterator 
     };
 
     /// @brief Shorthand lambda for the stack context checking condition
-    auto cmpStackTop = [](const std::stack<ContextGroup> &stack, enum ContextGroup ctx)
+    auto cmpStackTop = [](const std::stack<ContextGroup> &stack, enum ContextGroup ctxGr)
     {
-        return !stack.empty() && stack.top() == ctx;
+        return !stack.empty() && stack.top() == ctxGr;
     };
 
     switch (*iterRef)
     {
     //? CHCLASS_BEGIN check placeholder
     case '[':
-        if (iterRef + 1 < endIterRef && *(iterRef + 1) == '^')
+        if (iterPointsTo(iterRef + 1, '^'))
             setOffNType(2, TokenType::NCHCLASS_BEGIN);
         else
             setOffNType(1, TokenType::CHCLASS_BEGIN);
@@ -252,47 +268,25 @@ RegenParser::TokenType RegenParser::Parser::_scanOperator(std::string::iterator 
 
     //? CHCLASS_END check placeholder
     case ']':
-        if (!cmpStackTop(ctxGrStackRef, ContextGroup::CHCLASS))
-            throw RegenException::ContextMismatchException();
+        if (ctxGrStackRef.empty() || !cmpStackTop(ctxGrStackRef, ContextGroup::CHCLASS))
+            return TokenType::UNDEFINED;
         setOffNType(1, TokenType::CHCLASS_END);
         ctxGrStackRef.pop();
         break;
 
-    //? CHCLASS_SEP check placeholder
+    //? CHCLASS_RANGE check placeholder
     case '-':
-        if (cmpStackTop(ctxGrStackRef, RegenParser::ContextGroup::CHCLASS))
+        if (!cmpStackTop(ctxGrStackRef, RegenParser::ContextGroup::CHCLASS))
             return TokenType::UNDEFINED;
         setOffNType(1, TokenType::CHCLASS_RANGE);
         break;
 
-    //? CHCLASS_AND check placeholder
+    //? CHCLASS_INT check placeholder
     case '&':
-        if (iterRef + 1 < endIterRef && *(iterRef + 1) == '&')
-            setOffNType(2, TokenType::CHCLASS_AND);
-        return TokenType::UNDEFINED;
-
-    //? GROUP_BEGIN check placeholder
-    case '(':
-        if (cmpStackTop(ctxGrStackRef, ContextGroup::CHCLASS))
+        if (!cmpStackTop(ctxGrStackRef, RegenParser::ContextGroup::CHCLASS) ||
+            !iterPointsTo(iterRef + 1, '&'))
             return TokenType::UNDEFINED;
-        ctxGrStackRef.push(ContextGroup::GROUP);
-        setOffNType(1, TokenType::GROUP_BEGIN);
-        break;
-
-    //? GROUP_END check placeholder
-    case ')':
-        if (cmpStackTop(ctxGrStackRef, ContextGroup::CHCLASS))
-            return TokenType::UNDEFINED;
-        if (!cmpStackTop(ctxGrStackRef, ContextGroup::GROUP))
-            throw RegenException::ContextMismatchException();
-        setOffNType(1, TokenType::GROUP_END);
-        break;
-
-    //? GROUP_SEP check placeholder
-    case '|':
-        if (!cmpStackTop(ctxGrStackRef, ContextGroup::GROUP))
-            return TokenType::UNDEFINED;
-        setOffNType(1, TokenType::GROUP_SEP);
+        setOffNType(1, TokenType::CHCLASS_INT);
         break;
 
     default:
@@ -303,22 +297,22 @@ RegenParser::TokenType RegenParser::Parser::_scanOperator(std::string::iterator 
     return tokenType;
 }
 
-RegenParser::TokenType RegenParser::Parser::_scanToken(std::string::iterator &iterRef, const std::string::iterator &endIterRef, std::stack<ContextGroup> &ctxGrStackRef)
+RegenParser::TokenType RegenParser::Parser::_scanToken(const std::string::iterator &beginIterRO, std::string::iterator &endIterRO, std::string::iterator &iterRef, std::stack<ContextGroup> &ctxGrStackRef)
 {
-    if (iterRef >= endIterRef)
+    if (iterRef >= endIterRO)
         return TokenType::UNDEFINED;
 
-    if (TokenType tokenType; (tokenType = _scanDefinedChClass(iterRef, endIterRef)) != TokenType::UNDEFINED)
+    if (TokenType tokenType; (tokenType = _scanDefinedChClass(iterRef, endIterRO)) != TokenType::UNDEFINED)
         return tokenType;
 
-    return _scanOperator(iterRef, endIterRef, ctxGrStackRef);
+    return _scanOperator(beginIterRO, endIterRO, iterRef, ctxGrStackRef);
 }
 
 std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::_createLiteralNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id, const std::string &str)
 {
     auto childRef = std::make_shared<RegenAST::ASTNode>(id, RegenAST::NodeType::LITERAL, nodeRef);
-    nodeRef.get()->GetChildrenRef().emplace_back(childRef);
-    childRef.get()->GetDataRef().SetLiteral(str);
+    nodeRef->GetChildrenRef().emplace_back(childRef);
+    childRef->GetDataRef().SetLiteral(str);
 
     return childRef;
 }
@@ -326,7 +320,7 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::_createLiteralNode(std::
 std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::_createChClassNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id)
 {
     auto childRef = std::make_shared<RegenAST::ASTNode>(id, RegenAST::NodeType::CHCLASS, nodeRef);
-    nodeRef.get()->GetChildrenRef().emplace_back(childRef);
+    nodeRef->GetChildrenRef().emplace_back(childRef);
 
     return childRef;
 }
@@ -338,20 +332,20 @@ void RegenParser::Parser::_normalizeAST(const std::vector<std::shared_ptr<RegenA
     for (const auto &nodeRef : nodeRefVec)
     {
         /// Skips entry nodes. (safety check)
-        if (RegenAST::NodeType type = nodeRef.get()->GetDataRef().GetNodeType();
+        if (RegenAST::NodeType type = nodeRef->GetDataRef().GetNodeType();
             type == RegenAST::NodeType::ENTRY)
             continue;
 
         /// Removes the redundant node.
-        if (nodeRef.get()->GetDataRef().Empty())
+        if (nodeRef->GetDataRef().Empty())
         {
-            std::shared_ptr<RegenAST::ASTNode> parentRef = nodeRef.get()->GetParentRef();
+            std::shared_ptr<RegenAST::ASTNode> parentRef = nodeRef->GetParentRef();
 
-            parentRef.get()->GetChildrenRef().remove(nodeRef);
-            for (auto &childRef : nodeRef.get()->GetChildrenRef())
+            parentRef->GetChildrenRef().remove(nodeRef);
+            for (auto &childRef : nodeRef->GetChildrenRef())
             {
-                childRef.get()->SetParent(parentRef);
-                parentRef.get()->GetChildrenRef().emplace_back(childRef);
+                childRef->SetParent(parentRef);
+                parentRef->GetChildrenRef().emplace_back(childRef);
             }
         }
     }
@@ -359,16 +353,21 @@ void RegenParser::Parser::_normalizeAST(const std::vector<std::shared_ptr<RegenA
 
 void RegenParser::Parser::_setAbsNodeTypeNFlags(RegenParser::TokenType tokenType, RegenParser::AbstractNodeType &absNodeTypeRef, bool &createNodeFlagRef, bool &chClassRangeFlagRef)
 {
+    if (tokenType == TokenType::CHCLASS_END)
+    {
+        absNodeTypeRef = AbstractNodeType::CHCLASS;
+        return;
+    }
+
     if (tokenType == TokenType::CHCLASS_RANGE)
     {
-        createNodeFlagRef = false;
         chClassRangeFlagRef = true;
-        absNodeTypeRef = AbstractNodeType::LITERAL;
+        absNodeTypeRef = AbstractNodeType::CHCLASS;
         return;
     }
 
     createNodeFlagRef = true;
-    chClassRangeFlagRef = false;
+    // chClassRangeFlagRef = false;
 
     switch (tokenType)
     {
@@ -378,10 +377,6 @@ void RegenParser::Parser::_setAbsNodeTypeNFlags(RegenParser::TokenType tokenType
 
     case TokenType::NCHCLASS_BEGIN:
         absNodeTypeRef = AbstractNodeType::NCHCLASS;
-        break;
-
-    case TokenType::CHCLASS_END:
-        absNodeTypeRef = AbstractNodeType::LITERAL;
         break;
 
     case TokenType::CHCLASS_DIGIT:
@@ -401,6 +396,10 @@ void RegenParser::Parser::_setAbsNodeTypeNFlags(RegenParser::TokenType tokenType
         break;
 
     case TokenType::CHCLASS_UPPER:
+        absNodeTypeRef = AbstractNodeType::CHCLASS_UPPER;
+        break;
+
+    case TokenType::CHCLASS_ALPHA:
         absNodeTypeRef = AbstractNodeType::CHCLASS_ALPHA;
         break;
 
@@ -444,6 +443,10 @@ void RegenParser::Parser::_setAbsNodeTypeNFlags(RegenParser::TokenType tokenType
         absNodeTypeRef = AbstractNodeType::NCHCLASS_ALPHA;
         break;
 
+    case TokenType::NCHCLASS_ALPHA:
+        absNodeTypeRef = AbstractNodeType::NCHCLASS_ALPHA;
+        break;
+
     case TokenType::NCHCLASS_ALNUM:
         absNodeTypeRef = AbstractNodeType::NCHCLASS_ALNUM;
         break;
@@ -464,167 +467,255 @@ void RegenParser::Parser::_setAbsNodeTypeNFlags(RegenParser::TokenType tokenType
         absNodeTypeRef = AbstractNodeType::NCHCLASS_MATH;
         break;
 
-    case TokenType::CHCLASS_RANGE:
     default:
         createNodeFlagRef = false;
-        chClassRangeFlagRef = false;
+        absNodeTypeRef = AbstractNodeType::LITERAL;
         break;
     }
 }
 
 std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::ParseExpression(std::string &expressionRef)
 {
-    // TODO: Implement character class intersections
+    auto rootRef = std::make_shared<RegenAST::ASTNode>(0, RegenAST::NodeType::ENTRY, nullptr);
 
     if (expressionRef.empty())
-        return nullptr;
+        return rootRef;
+
+    //? Parser flag declarations placeholder.
+    bool createNodeFlag;
+    bool chClassRangeFlag;
+
+    //? Range-related variable declaration placeholder.
+    bool rangeStartChIsSet = false;
+    bool rangeStopChIsSet = false;
+    char rangeStartCh;
+    char rangeStopCh;
 
     int currId = 0;
+
     std::string literalBuff;
-    std::stack<RegenParser::ContextGroup> ctxStack;
-    std::vector<std::shared_ptr<RegenAST::ASTNode>> nodeRefVec;
-    auto rootRef = std::make_shared<RegenAST::ASTNode>(0, RegenAST::NodeType::ENTRY, nullptr);
+    std::stack<RegenParser::ContextGroup> ctxGrStack;
     std::shared_ptr<RegenAST::ASTNode> nodeRef = rootRef;
 
     //? The root (entry) node of the AST is circular. (root->Parent == root)
-    rootRef.get()->SetParent(rootRef);
+    rootRef->SetParent(rootRef);
 
-    char lastChClassCh = '\0';
-    bool chClassRangeFlag;
-    bool createNodeFlag;
-
-    AbstractNodeType absNodeType;
     auto iter = expressionRef.begin();
+    auto beginIter = expressionRef.begin();
     auto endIter = expressionRef.end();
     while (iter != expressionRef.end())
     {
-        TokenType tokenType = RegenParser::Parser::_scanToken(iter, endIter, ctxStack);
+        ContextGroup prevCtxGr = ctxGrStack.empty() ? ContextGroup::NONE : ctxGrStack.top();
+        TokenType tokenType = RegenParser::Parser::_scanToken(beginIter, endIter, iter, ctxGrStack);
 
         if (tokenType == TokenType::UNDEFINED)
         {
             char escapeSeq;
             char resultCh = _scanEscape(iter, endIter, escapeSeq) ? escapeSeq : *iter;
 
-            lastChClassCh = resultCh;
+            if (!chClassRangeFlag && !rangeStartChIsSet)
+            {
+                rangeStartChIsSet = true;
+                rangeStartCh = resultCh;
+            }
+            else if (chClassRangeFlag && !rangeStopChIsSet)
+            {
+                rangeStopChIsSet = true;
+                rangeStopCh = resultCh;
+            }
+
             literalBuff += resultCh;
             iter++;
         }
         else
         {
+            AbstractNodeType absNodeType;
             _setAbsNodeTypeNFlags(
                 tokenType,
                 absNodeType,
                 createNodeFlag,
                 chClassRangeFlag);
 
-            if (chClassRangeFlag)
-                nodeRef.get()->GetDataRef().SetChSet(lastChClassCh, *iter);
-
-            if (!createNodeFlag)
-                continue;
-
-            currId++;
-            nodeRef = _createChClassNode(nodeRef, currId);
-
-            if (absNodeType == AbstractNodeType::LITERAL && !literalBuff.empty())
+            if (chClassRangeFlag &&
+                (tokenType == TokenType::UNDEFINED || tokenType == TokenType::CHCLASS_END))
             {
-                nodeRef.get()->GetDataRef().SetChSet(literalBuff);
+                short literalBuffOff;
+
+                //? Misleading range check placeholder (#1)
+                if (!rangeStartChIsSet && !rangeStopChIsSet)
+                {
+                    if (RegenOutput::OUTPUT_ENABLED)
+                        RegenOutput::FMTPrintWarning(RegenOutput::WarningMessage::CHCLASS_MISLEADING_RANGE);
+                    nodeRef->GetDataRef().SetChSet("-");
+                    literalBuffOff = 0;
+                }
+                //? Misleading range check placeholder (#2)
+                else if (!rangeStartChIsSet)
+                {
+                    if (RegenOutput::OUTPUT_ENABLED)
+                        RegenOutput::FMTPrintWarning(RegenOutput::WarningMessage::CHCLASS_MISLEADING_RANGE);
+                    nodeRef->GetDataRef().SetChSet("-");
+                    if (rangeStopCh != '-')
+                        nodeRef->GetDataRef().SetChSet(std::string(1, rangeStopCh));
+                    literalBuffOff = 1;
+                }
+                //? Misleading range check placeholder (#3)
+                else if (!rangeStopChIsSet)
+                {
+                    if (RegenOutput::OUTPUT_ENABLED)
+                        RegenOutput::FMTPrintWarning(RegenOutput::WarningMessage::CHCLASS_MISLEADING_RANGE);
+                    nodeRef->GetDataRef().SetChSet(std::string(1, rangeStartCh));
+                    if (rangeStartCh != '-')
+                        nodeRef->GetDataRef().SetChSet("-");
+                    literalBuffOff = 1;
+                }
+                else
+                {
+                    nodeRef->GetDataRef().SetChSet(rangeStartCh, rangeStopCh);
+                    literalBuffOff = 2;
+                }
+
+                if (literalBuffOff > 0)
+                    literalBuff.erase(literalBuff.begin(), literalBuff.begin() + literalBuffOff);
+
+                rangeStartChIsSet = false;
+                rangeStopChIsSet = false;
+                chClassRangeFlag = false;
+            }
+
+            if (nodeRef->GetId() > 0 &&
+                (tokenType == TokenType::CHCLASS_BEGIN ||
+                 tokenType == TokenType::NCHCLASS_BEGIN ||
+                 tokenType == TokenType::CHCLASS_END))
+            {
+                nodeRef->GetDataRef().SetChSet(literalBuff);
                 literalBuff.clear();
+
+                if (nodeRef->GetDataRef().Empty())
+                {
+                    if (RegenOutput::OUTPUT_ENABLED)
+                        RegenOutput::FMTPrintWarning(RegenOutput::WarningMessage::CHCLASS_EMPTY);
+                    if (nodeRef->GetId() > 0)
+                    {
+                        nodeRef = nodeRef->GetParentRef();
+                        nodeRef->GetChildrenRef().pop_back();
+                    }
+                }
             }
 
-            if (absNodeType >= AbstractNodeType::NCHCLASS)
+            if (createNodeFlag)
             {
-                nodeRef.get()->GetDataRef().FillChSet(true);
-                nodeRef.get()->GetDataRef().FlipInvertFlag();
+                if (prevCtxGr == ContextGroup::NONE && !literalBuff.empty())
+                {
+                    currId++;
+                    nodeRef = _createLiteralNode(nodeRef, currId, literalBuff);
+                    literalBuff.clear();
+                }
+
+                if (absNodeType < AbstractNodeType::GROUP &&
+                    prevCtxGr != ContextGroup::CHCLASS)
+                {
+                    currId++;
+                    nodeRef = _createChClassNode(nodeRef, currId);
+
+                    if (absNodeType >= AbstractNodeType::NCHCLASS)
+                        nodeRef->GetDataRef().FillChSet(true);
+                }
+
+                if (absNodeType >= AbstractNodeType::NCHCLASS &&
+                    absNodeType < AbstractNodeType::GROUP)
+                {
+                    nodeRef->GetDataRef().SetInvertFlag(true);
+                }
+
+                switch (absNodeType)
+                {
+                case AbstractNodeType::CHCLASS_DIGIT:
+                case AbstractNodeType::NCHCLASS_DIGIT:
+                    nodeRef->GetDataRef().SetChSet('0', '9');
+                    break;
+
+                case AbstractNodeType::CHCLASS_WORD:
+                case AbstractNodeType::NCHCLASS_WORD:
+                    nodeRef->GetDataRef().SetChSet('a', 'z');
+                    nodeRef->GetDataRef().SetChSet('A', 'Z');
+                    nodeRef->GetDataRef().SetChSet('0', '9');
+                    nodeRef->GetDataRef().SetChSet("_");
+                    break;
+
+                case AbstractNodeType::CHCLASS_SPACE:
+                case AbstractNodeType::NCHCLASS_SPACE:
+                    nodeRef->GetDataRef().SetChSet(CHCLASS_SPACE_STR);
+                    break;
+
+                case AbstractNodeType::CHCLASS_LOWER:
+                case AbstractNodeType::NCHCLASS_LOWER:
+                    nodeRef->GetDataRef().SetChSet('a', 'z');
+                    break;
+
+                case AbstractNodeType::CHCLASS_UPPER:
+                case AbstractNodeType::NCHCLASS_UPPER:
+                    nodeRef->GetDataRef().SetChSet('A', 'Z');
+                    break;
+
+                case AbstractNodeType::CHCLASS_ALPHA:
+                case AbstractNodeType::NCHCLASS_ALPHA:
+                    nodeRef->GetDataRef().SetChSet('a', 'z');
+                    nodeRef->GetDataRef().SetChSet('A', 'Z');
+                    break;
+
+                case AbstractNodeType::CHCLASS_ALNUM:
+                case AbstractNodeType::NCHCLASS_ALNUM:
+                    nodeRef->GetDataRef().SetChSet('a', 'z');
+                    nodeRef->GetDataRef().SetChSet('A', 'Z');
+                    nodeRef->GetDataRef().SetChSet('0', '9');
+                    break;
+
+                case AbstractNodeType::CHCLASS_SYMBOL:
+                case AbstractNodeType::NCHCLASS_SYMBOL:
+                    nodeRef->GetDataRef().SetChSet(CHCLASS_SYMBOL_STR);
+                    break;
+
+                case AbstractNodeType::CHCLASS_PUNCT:
+                case AbstractNodeType::NCHCLASS_PUNCT:
+                    nodeRef->GetDataRef().SetChSet(CHCLASS_PUNCT_STR);
+                    break;
+
+                case AbstractNodeType::CHCLASS_CLOSURE:
+                case AbstractNodeType::NCHCLASS_CLOSURE:
+                    nodeRef->GetDataRef().SetChSet(CHCLASS_CLOSURE_STR);
+                    break;
+
+                case AbstractNodeType::CHCLASS_MATH:
+                case AbstractNodeType::NCHCLASS_MATH:
+                    nodeRef->GetDataRef().SetChSet(CHCLASS_MATH_STR);
+                    break;
+
+                default:
+                    break;
+                }
+
+                createNodeFlag = false;
+                chClassRangeFlag = false;
+                rangeStartChIsSet = false;
+                rangeStopChIsSet = false;
             }
-
-            switch (absNodeType)
-            {
-            case AbstractNodeType::CHCLASS_DIGIT:
-            case AbstractNodeType::NCHCLASS_DIGIT:
-                nodeRef.get()->GetDataRef().SetChSet('0', '9');
-                break;
-
-            case AbstractNodeType::CHCLASS_WORD:
-            case AbstractNodeType::NCHCLASS_WORD:
-                nodeRef.get()->GetDataRef().SetChSet('a', 'z');
-                nodeRef.get()->GetDataRef().SetChSet('A', 'Z');
-                nodeRef.get()->GetDataRef().SetChSet('0', '9');
-                nodeRef.get()->GetDataRef().SetChSet("_");
-                break;
-
-            case AbstractNodeType::CHCLASS_SPACE:
-            case AbstractNodeType::NCHCLASS_SPACE:
-                nodeRef.get()->GetDataRef().SetChSet(CHCLASS_SPACE_STR);
-                break;
-
-            case AbstractNodeType::CHCLASS_LOWER:
-            case AbstractNodeType::NCHCLASS_LOWER:
-                nodeRef.get()->GetDataRef().SetChSet('a', 'z');
-                break;
-
-            case AbstractNodeType::CHCLASS_UPPER:
-            case AbstractNodeType::NCHCLASS_UPPER:
-                nodeRef.get()->GetDataRef().SetChSet('A', 'Z');
-                break;
-
-            case AbstractNodeType::CHCLASS_ALPHA:
-            case AbstractNodeType::NCHCLASS_ALPHA:
-                nodeRef.get()->GetDataRef().SetChSet('a', 'z');
-                nodeRef.get()->GetDataRef().SetChSet('A', 'Z');
-                break;
-
-            case AbstractNodeType::CHCLASS_ALNUM:
-            case AbstractNodeType::NCHCLASS_ALNUM:
-                nodeRef.get()->GetDataRef().SetChSet('a', 'z');
-                nodeRef.get()->GetDataRef().SetChSet('A', 'Z');
-                nodeRef.get()->GetDataRef().SetChSet('0', '9');
-                break;
-
-            case AbstractNodeType::CHCLASS_SYMBOL:
-            case AbstractNodeType::NCHCLASS_SYMBOL:
-                nodeRef.get()->GetDataRef().SetChSet(CHCLASS_SYMBOL_STR);
-                break;
-
-            case AbstractNodeType::CHCLASS_PUNCT:
-            case AbstractNodeType::NCHCLASS_PUNCT:
-                nodeRef.get()->GetDataRef().SetChSet(CHCLASS_PUNCT_STR);
-                break;
-
-            case AbstractNodeType::CHCLASS_CLOSURE:
-            case AbstractNodeType::NCHCLASS_CLOSURE:
-                nodeRef.get()->GetDataRef().SetChSet(CHCLASS_CLOSURE_STR);
-                break;
-
-            case AbstractNodeType::CHCLASS_MATH:
-            case AbstractNodeType::NCHCLASS_MATH:
-                nodeRef.get()->GetDataRef().SetChSet(CHCLASS_MATH_STR);
-                break;
-
-            default:
-                break;
-            }
-
-            nodeRefVec.push_back(nodeRef);
-            createNodeFlag = false;
         }
     }
 
-    if (absNodeType == AbstractNodeType::LITERAL && !literalBuff.empty())
+    //? This additional check is for expressions that end in a literal.
+    if (!literalBuff.empty())
     {
         currId++;
-        nodeRef = _createChClassNode(nodeRef, currId);
-        nodeRef.get()->GetDataRef().SetChSet(literalBuff);
+        _createLiteralNode(nodeRef, currId, literalBuff);
         literalBuff.clear();
     }
 
-    if (chClassRangeFlag)
-        throw RegenException::InvalidRangeException();
-
-    if (!ctxStack.empty())
-        throw RegenException::ContextMismatchException();
-
-    _normalizeAST(nodeRefVec);
+    if (!ctxGrStack.empty())
+    {
+        throw RegenException::UnterminatedConstructException(
+            ContextGroupToStr(ctxGrStack.top()));
+    }
 
     return rootRef;
 }

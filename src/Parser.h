@@ -8,8 +8,6 @@
 #include "Exception.h"
 #include "Output.h"
 
-// const bool REGEN_REGEX_COMPLIANT;
-
 #ifndef REGEN_PARSER_HEADER_H
 #define REGEN_PARSER_HEADER_H
 
@@ -26,15 +24,12 @@ namespace RegenParser
     enum class TokenType
     {
         UNDEFINED,
-        GROUP_BEGIN,
-        GROUP_END,
-        GROUP_SEP,
+        CHCLASS_BEGIN,
+        CHCLASS_END, //? The token of type CHCLASS_END incorporates NCHCLASS_END.
+        CHCLASS_INT,
+        CHCLASS_RANGE,
         CHCLASS_WORD,
         CHCLASS_SPACE,
-        CHCLASS_BEGIN,
-        CHCLASS_END,
-        CHCLASS_AND,
-        CHCLASS_RANGE,
         CHCLASS_DIGIT,
         CHCLASS_LOWER,
         CHCLASS_UPPER,
@@ -44,7 +39,7 @@ namespace RegenParser
         CHCLASS_PUNCT,
         CHCLASS_CLOSURE,
         CHCLASS_MATH,
-        NCHCLASS_BEGIN, //? The token of type CHCLASS_END incorporates NCHCLASS_END.
+        NCHCLASS_BEGIN,
         NCHCLASS_DIGIT,
         NCHCLASS_WORD,
         NCHCLASS_SPACE,
@@ -56,17 +51,20 @@ namespace RegenParser
         NCHCLASS_PUNCT,
         NCHCLASS_CLOSURE,
         NCHCLASS_MATH,
+        GROUP_BEGIN,
+        GROUP_END,
+        GROUP_SEP,
     };
 
     /// @brief Defines all the possible context groups of the regen language.
     enum class ContextGroup
     {
+        NONE,
         CHCLASS,
         GROUP
     };
 
     // TODO: Find the right place in the source files to put this comment.
-    //? A negated character class construct will be internally converted to a character class.
 
     /// @brief Defines all the possible nodes types of the regen language. (except the entry node type)
     /// WARNING: NCHCLASS-related node type values must be greater than the CHCLASS-related ones.
@@ -85,6 +83,7 @@ namespace RegenParser
         CHCLASS_PUNCT,
         CHCLASS_CLOSURE,
         CHCLASS_MATH,
+        ICHCLASS,
         NCHCLASS,
         NCHCLASS_DIGIT,
         NCHCLASS_WORD,
@@ -97,7 +96,14 @@ namespace RegenParser
         NCHCLASS_PUNCT,
         NCHCLASS_CLOSURE,
         NCHCLASS_MATH,
+        GROUP,
     };
+
+    static inline std::string ContextGroupToStr(ContextGroup ctxGr)
+    {
+        static const std::vector<std::string> CONVERSION_VEC{"NONE", "CHCLASS", "GROUP"};
+        return CONVERSION_VEC.at((size_t)ctxGr);
+    }
 
     /*
      * @brief Encapsulates all the methods used in for parsing a regen expression.
@@ -122,11 +128,11 @@ namespace RegenParser
         static TokenType _scanDefinedChClass(std::string::iterator &iterRef, const std::string::iterator &endIterRef);
 
         /// @return Returns the type of token corresponding to the operator construct of the regen language pointed by the given modifiable iterator.
-        static TokenType _scanOperator(std::string::iterator &iterRef, const std::string::iterator &endIterRef, std::stack<ContextGroup> &ctxGrStackRef);
+        static TokenType _scanOperator(const std::string::iterator &beginIterRO, const std::string::iterator &endIterRO, std::string::iterator &iterRef, std::stack<ContextGroup> &ctxGrStackRef);
 
         /// @brief The method acts as a wrapper incorporating all functions that whose name begin with scan.
         /// @return Returns the type of token corresponding to the regen language construct pointed by the given modifiable iterator.
-        static TokenType _scanToken(std::string::iterator &iterRef, const std::string::iterator &endIterRef, std::stack<ContextGroup> &ctxGrStackRef);
+        static TokenType _scanToken(const std::string::iterator &beginIterRO, std::string::iterator &endIterRO, std::string::iterator &iterRef, std::stack<ContextGroup> &ctxGrStackRef);
 
         /*
          * @brief Converts the given token type to its corresponding abstract node type. (assignment might be skipped)
@@ -138,6 +144,7 @@ namespace RegenParser
         /// @return A shared pointer to the newly created node of type literal.
         static std::shared_ptr<RegenAST::ASTNode> _createLiteralNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id, const std::string &str);
 
+        /// @brief Negated character class constructs will be internally converted to a character class.
         /// @return A shared pointer to the newly created node of type literal.
         static std::shared_ptr<RegenAST::ASTNode> _createChClassNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, int id);
 

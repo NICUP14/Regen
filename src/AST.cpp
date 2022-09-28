@@ -27,9 +27,9 @@ void RegenAST::ASTNode::SetParent(std::shared_ptr<RegenAST::ASTNode> parent)
 
 bool RegenAST::ASTNodeData::Empty() const
 {
-    if (_nodeType == RegenAST::NodeType::LITERAL)
+    if (_nodeType == NodeType::LITERAL)
         return _literal.empty();
-    else if (_nodeType == RegenAST::NodeType::CHCLASS)
+    else if (_nodeType == NodeType::CHCLASS)
         return _chSet.none();
 
     /// Omitting this return statement will trigger the compiler.
@@ -44,7 +44,7 @@ RegenAST::NodeType RegenAST::ASTNodeData::GetNodeType() const
 std::string RegenAST::ASTNodeData::GetLiteral()
 {
     /// Appends all the characters present in the set to literal.
-    if (_nodeType == RegenAST::NodeType::CHCLASS)
+    if (_nodeType == NodeType::CHCLASS)
     {
         _literal.reserve(_chSet.count());
 
@@ -56,12 +56,17 @@ std::string RegenAST::ASTNodeData::GetLiteral()
     return _literal;
 }
 
-void RegenAST::ASTNodeData::FlipInvertFlag()
+void RegenAST::ASTNodeData::SetInvertFlag(bool value)
 {
-    _chSetInvertFlag = true;
+    if (_nodeType != NodeType::CHCLASS)
+        throw RegenException::NodeDataMismatchException(
+            NodeTypeToStr(NodeType::CHCLASS),
+            NodeTypeToStr(_nodeType));
+
+    _chSetInvertFlag = value;
 }
 
-void RegenAST::ASTNodeData::SetNodeType(RegenAST::NodeType type)
+void RegenAST::ASTNodeData::SetNodeType(NodeType type)
 {
     _nodeType = type;
 }
@@ -69,8 +74,10 @@ void RegenAST::ASTNodeData::SetNodeType(RegenAST::NodeType type)
 void RegenAST::ASTNodeData::SetLiteral(const std::string &str)
 {
     //? Type checker placeholder. (#1)
-    if (_nodeType != RegenAST::NodeType::LITERAL)
-        throw RegenException::NodeDataMismatchException();
+    if (_nodeType != NodeType::LITERAL)
+        throw RegenException::NodeDataMismatchException(
+            NodeTypeToStr(NodeType::LITERAL),
+            NodeTypeToStr(_nodeType));
 
     _literal = str;
 }
@@ -78,8 +85,10 @@ void RegenAST::ASTNodeData::SetLiteral(const std::string &str)
 void RegenAST::ASTNodeData::FillChSet(bool value)
 {
     //? Type checker placeholder. (#2)
-    if (_nodeType != RegenAST::NodeType::CHCLASS)
-        throw RegenException::NodeDataMismatchException();
+    if (_nodeType != NodeType::CHCLASS)
+        throw RegenException::NodeDataMismatchException(
+            NodeTypeToStr(NodeType::CHCLASS),
+            NodeTypeToStr(_nodeType));
 
     if (!value)
     {
@@ -87,34 +96,48 @@ void RegenAST::ASTNodeData::FillChSet(bool value)
         return;
     }
 
-    for (unsigned char chRange = 0; chRange < (unsigned char)RegenAST::CH_SET_SIZE; chRange++)
+    for (unsigned char chRange = 0; chRange < (unsigned char)CH_SET_SIZE; chRange++)
         _chSet.set(chRange);
 }
 
 void RegenAST::ASTNodeData::SetChSet(const std::string_view &strRO)
 {
+    // TODO: Print a warning about duplicate characters in the string.
     //? Type checker placeholder. (#4)
-    if (_nodeType != RegenAST::NodeType::CHCLASS)
-        throw RegenException::NodeDataMismatchException();
+    if (_nodeType != NodeType::CHCLASS)
+        throw RegenException::NodeDataMismatchException(
+            NodeTypeToStr(NodeType::CHCLASS),
+            NodeTypeToStr(_nodeType));
 
     for (auto ch : strRO)
+    {
+        if (RegenOutput::OUTPUT_ENABLED &&
+            _chSet.test(ch) != _chSetInvertFlag)
+            RegenOutput::FMTPrintWarning(fmt::format(RegenOutput::WarningMessage::CHCLASS_DUPLICATE_CHARACTER, ch));
         _chSet.set(ch, !_chSetInvertFlag);
+    }
 }
 
 void RegenAST::ASTNodeData::SetChSet(char startCh, char stopCh)
 {
     //? Type checker placeholder. (#5)
-    if (_nodeType != RegenAST::NodeType::CHCLASS)
-        throw RegenException::NodeDataMismatchException();
+    if (_nodeType != NodeType::CHCLASS)
+        throw RegenException::NodeDataMismatchException(
+            NodeTypeToStr(NodeType::CHCLASS),
+            NodeTypeToStr(_nodeType));
 
     //? "It just works"
-    if (REGEN_REGEX_COMPLIANT && startCh > stopCh)
-        throw RegenException::InvalidRangeException();
+    if (REGEN_REGEX_COMPLIANT_FLAG && startCh > stopCh)
+        throw RegenException::InvalidRegexRangeException();
 
     if (startCh > stopCh)
         std::swap(startCh, stopCh);
-    else
 
-        for (char chRange = startCh; chRange <= stopCh; chRange++)
-            _chSet.set(chRange, !_chSetInvertFlag);
+    for (char ch = startCh; ch <= stopCh; ch++)
+    {
+        if (RegenOutput::OUTPUT_ENABLED &&
+            _chSet.test(ch) != _chSetInvertFlag)
+            RegenOutput::FMTPrintWarning(fmt::format(RegenOutput::WarningMessage::CHCLASS_DUPLICATE_CHARACTER, ch));
+        _chSet.set(ch, !_chSetInvertFlag);
+    }
 }
