@@ -7,9 +7,6 @@
 #include <functional>
 #include "Exception.h"
 
-// TODO: Remove this import used for debugging
-#include <fmt/printf.h>
-
 #ifndef REGEN_AST_HEADER_H
 #define REGEN_AST_HEADER_H
 
@@ -55,6 +52,8 @@ namespace RegenAST
         /// @brief Sets the character set invert flag to the specified value.
         void SetInvertFlag(bool value);
 
+        void SetIntersectFlag(bool value);
+
         /// @brief Sets the node type of the current object to the given type.
         void SetNodeType(NodeType type);
 
@@ -75,6 +74,7 @@ namespace RegenAST
         std::string _literal;
         std::bitset<CH_SET_SIZE> _chSet;
         bool _chSetInvertFlag = false;
+        bool _chSetIntersectFlag = false;
     };
 
     /// @brief Represents a node in the AST of a parsed Regen expression.

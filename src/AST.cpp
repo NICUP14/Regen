@@ -32,7 +32,7 @@ bool RegenAST::ASTNodeData::Empty() const
     else if (_nodeType == NodeType::CHCLASS)
         return _chSet.none();
 
-    /// Omitting this return statement will trigger the compiler.
+    //? Entry-level nodes must always be empty
     return true;
 }
 
@@ -64,6 +64,16 @@ void RegenAST::ASTNodeData::SetInvertFlag(bool value)
             NodeTypeToStr(_nodeType));
 
     _chSetInvertFlag = value;
+}
+
+void RegenAST::ASTNodeData::SetIntersectFlag(bool value)
+{
+    if (_nodeType != NodeType::CHCLASS)
+        throw RegenException::NodeDataMismatchException(
+            NodeTypeToStr(NodeType::CHCLASS),
+            NodeTypeToStr(_nodeType));
+
+    _chSetIntersectFlag = value;
 }
 
 void RegenAST::ASTNodeData::SetNodeType(NodeType type)
@@ -109,12 +119,20 @@ void RegenAST::ASTNodeData::SetChSet(const std::string_view &strRO)
             NodeTypeToStr(NodeType::CHCLASS),
             NodeTypeToStr(_nodeType));
 
-    for (auto ch : strRO)
+    if (_chSetIntersectFlag)
     {
-        if (RegenOutput::OUTPUT_ENABLED &&
-            _chSet.test(ch) != _chSetInvertFlag)
-            RegenOutput::FMTPrintWarning(fmt::format(RegenOutput::WarningMessage::CHCLASS_DUPLICATE_CHARACTER, ch));
-        _chSet.set(ch, !_chSetInvertFlag);
+        for (auto ch : strRO)
+            _chSet.set(_chSet.test(ch));
+    }
+    else if (_chSetInvertFlag)
+    {
+        for (auto ch : strRO)
+        {
+            if (RegenOutput::OUTPUT_ENABLED &&
+                _chSet.test(ch) != _chSetInvertFlag)
+                RegenOutput::FMTPrintWarning(fmt::format(RegenOutput::WarningMessage::CHCLASS_DUPLICATE_CHARACTER, ch));
+            _chSet.set(ch, !_chSetInvertFlag);
+        }
     }
 }
 

@@ -14,6 +14,7 @@ namespace RegenOutput
     struct WarningMessage
     {
         static const std::string CHCLASS_EMPTY;
+        static const std::string CHCLASS_REDUNDANT_INIT;
         static const std::string CHCLASS_DUPLICATE_CHARACTER;
         static const std::string CHCLASS_MISLEADING_RANGE;
     };

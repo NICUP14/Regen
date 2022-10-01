@@ -8,8 +8,13 @@ const std::string RegenOutput::WarningMessage::CHCLASS_DUPLICATE_CHARACTER =
 const std::string RegenOutput::WarningMessage::CHCLASS_EMPTY =
     "The parser detected a possibly redundant empty character class in the given expression";
 
+//? Expected fmt::print parameters: nodeDataLiteral
+const std::string RegenOutput::WarningMessage::CHCLASS_REDUNDANT_INIT =
+    "The parser detected the redundant custom character class initializer \"{}\" in the given expression";
+
+//? Expected fmt::print parameters: None
 const std::string RegenOutput::WarningMessage::CHCLASS_MISLEADING_RANGE =
-    "The parser detected a possibly misleading range-like (fake range) custom character class";
+    "The parser detected a possibly misleading range-like (fake range) custom character class initializer";
 
 //? Expected fmt::print parameters: contextGroupStr
 const std::string RegenOutput::ExceptionMessage::UNTERMINATED_CONSTRUCT =

@@ -1,116 +1,118 @@
-//? C library imports
-#include <stdio.h>
-#include <string.h>
-
-//? C++ library imports
+#include <iostream>
+#include <fstream>
 #include <string>
 #include <vector>
 #include <bitset>
 #include <memory>
 #include <fmt/core.h>
+#include <fmt/ostream.h>
 #include "Parser.h"
 #include "AST.h"
 
-//! BUG LIST (ordered by importance)
-//! The regen expression [[^abc]] throws an unexpected exception.
+//! BUG LIST
+//! Character class intersections are currently bugged
 
 // TODO LIST (ordered by importance)
-// TODO: Replace fmt::fprintf with fmt::print.
 // TODO: Implement character class intersections.
-// TODO: Require slashes to be escaped when the REGEN_REGEX_FLAG is true.
+// TODO: Implement a ASTNode type checker method.
+// TODO: Implement an in-place character node data append operation of using literalBuff
+// TODO: Check for OUTPUT_ENABLED flag inside the RegenOutput methods
 // TODO: Refactor the codebase
 
+//? Stream-related variable definitions
 const bool USE_STDIN = true;
 const bool USE_STDOUT = true;
-const size_t EXPRESSION_SIZE = 50;
-const size_t NODE_ID_SET_SIZE = 50;
-const char *const TEST_FILE = "test/cases.txt";
+const char *const TEST_FILE = "test/cases_chclass.txt";
 const char *const OUT_FILE = "test/cases_output.txt";
-const char *const ERR_FILE = "test/cases_error.txt";
 
 //? Regen-related flag definition
-const bool REGEN_REGEX_COMPLIANT_FLAG = false;
+const bool REGEN_REGEX_COMPLIANT_FLAG = true;
 
-void printASTNode(FILE *outputFD, std::shared_ptr<RegenAST::ASTNode> nodeRef)
+const size_t NODE_ID_SET_SIZE = 50;
+
+void printASTNode(std::ostream &oStreamRef, std::shared_ptr<RegenAST::ASTNode> nodeRef)
 {
 
-	fmt::fprintf(outputFD, "Node %d:\n", nodeRef->GetId());
-	fmt::fprintf(outputFD, "\tType: %s;\n", NodeTypeToStr(nodeRef->GetDataRef().GetNodeType()));
-	fmt::fprintf(outputFD, "\tLiteral: %s;\n", nodeRef->GetDataRef().GetLiteral());
+	fmt::print(oStreamRef, "Node {}:\n", nodeRef->GetId());
+	fmt::print(oStreamRef, "\tType: {};\n", NodeTypeToStr(nodeRef->GetDataRef().GetNodeType()));
+
+	//! fmt::print throws an "invalid utf-8" exception for negated character classes
+	// fmt::print(oStreamRef, "\tLiteral: {};\n", nodeRef->GetDataRef().GetLiteral());
+	oStreamRef << "\tLiteral: " << nodeRef->GetDataRef().GetLiteral() << '\n';
 
 	for (const auto &child : nodeRef->GetChildrenRef())
-		fmt::fprintf(outputFD, "\tChild: %d;\n", child->GetId());
+		fmt::print(oStreamRef, "\tChild: {};\n", child->GetId());
 }
 
-void traverseAST(FILE *outputFD, std::bitset<NODE_ID_SET_SIZE> &nodeIdSetRef, std::shared_ptr<RegenAST::ASTNode> node)
+void traverseAST(std::ostream &oStreamRef, std::bitset<NODE_ID_SET_SIZE> &nodeIdSetRef, std::shared_ptr<RegenAST::ASTNode> node)
 {
 	nodeIdSetRef.set(node->GetId(), true);
-	printASTNode(outputFD, node);
+	printASTNode(oStreamRef, node);
 
 	for (const auto &child : node->GetChildrenRef())
 		if (!nodeIdSetRef.test(child->GetId()))
-			traverseAST(outputFD, nodeIdSetRef, child);
+			traverseAST(oStreamRef, nodeIdSetRef, child);
 }
 
 int main()
 {
 	size_t count = 1;
-	char expression[EXPRESSION_SIZE];
+	std::string expression;
 	std::bitset<NODE_ID_SET_SIZE> nodeIdSet;
 
-	auto testFileFD = fopen(TEST_FILE, "r");
-	auto outputFileFD = fopen(OUT_FILE, "w");
+	std::ifstream testStream;
+	std::ofstream outputStream;
 
-	if (testFileFD == nullptr && !USE_STDIN)
+	if (!USE_STDIN)
 	{
-		std::cerr << "Cannot open the specified file\n";
-		fclose(testFileFD);
-		return -1;
-	}
+		testStream.open(TEST_FILE);
 
-	if (outputFileFD == nullptr && !USE_STDOUT)
-	{
-		std::cerr << "Cannot open the specified file\n";
-		fclose(outputFileFD);
-		return -1;
-	}
-
-	auto inputFD = USE_STDIN ? stdin : testFileFD;
-	auto outputFD = USE_STDOUT ? stdout : outputFileFD;
-	while (fgets(expression, EXPRESSION_SIZE, inputFD) != nullptr)
-	{
-		if (strlen(expression) == 0 || expression[0] == '#')
+		if (!testStream.is_open())
 		{
-			fmt::fprintf(outputFD, expression);
+			std::cerr << "Cannot open the test file\n";
+			return -1;
+		}
+	}
+
+	if (!USE_STDOUT)
+	{
+		outputStream.open(OUT_FILE);
+
+		if (!outputStream.is_open())
+		{
+			std::cerr << "Cannot open the output file\n";
+			return -1;
+		}
+	}
+
+	auto &iStreamRef = USE_STDIN ? std::cin : testStream;
+	auto &oStreamRef = USE_STDOUT ? std::cout : outputStream;
+	while (std::getline(iStreamRef, expression))
+	{
+		if (expression.empty() || expression.at(0) == '#')
+		{
+			fmt::print(oStreamRef, expression);
 			continue;
 		}
 
-		expression[strlen(expression) - 1] = '\0';
-
-		fmt::fprintf(outputFD, "Expression #%d: \"%s\"\n", count, expression);
+		fmt::print(oStreamRef, "Expression #{}: \"{}\"\n", count, expression);
 		count++;
 
 		try
 		{
-			auto expressionParam = std::string(expression);
-			auto root = RegenParser::Parser::ParseExpression(expressionParam);
+			auto root = RegenParser::Parser::ParseExpression(expression);
 
 			nodeIdSet.reset();
-			traverseAST(outputFD, nodeIdSet, root);
+			traverseAST(oStreamRef, nodeIdSet, root);
 		}
 		catch (const std::exception &e)
 		{
-			fmt::fprintf(outputFD, "ERROR: \"%s\"\n", e.what());
+			fmt::print(oStreamRef, "ERROR: \"{}\"\n", e.what());
 		}
 
-		fmt::fprintf(outputFD, "\n");
-
-		//? Similar to std::endl
-		fflush(outputFD);
+		fmt::print(oStreamRef, "\n");
+		oStreamRef.flush();
 	}
-
-	fclose(testFileFD);
-	fclose(outputFileFD);
 
 	return 0;
 }

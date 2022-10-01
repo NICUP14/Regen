@@ -83,7 +83,6 @@ namespace RegenParser
         CHCLASS_PUNCT,
         CHCLASS_CLOSURE,
         CHCLASS_MATH,
-        ICHCLASS,
         NCHCLASS,
         NCHCLASS_DIGIT,
         NCHCLASS_WORD,
@@ -136,9 +135,9 @@ namespace RegenParser
 
         /*
          * @brief Converts the given token type to its corresponding abstract node type. (assignment might be skipped)
-         * Additionally sets the createNode and chRangeFlags in compliance with the abstract node type
+         * Additionally sets the createNode, chRangeFlag, chClassIntFlag flags in compliance with the abstract node type
          */
-        static void _setAbsNodeTypeNFlags(TokenType tokenType, AbstractNodeType &absNodeTypeRef, bool &createNodeFlagRef, bool &chClassRangeFlagRef);
+        static void _setAbsNodeTypeNFlags(TokenType tokenType, AbstractNodeType &absNodeTypeRef, bool &createNodeFlagRef, bool &chClassRangeFlagRef, bool &chClassIntFlagRef);
 
         /// @param str The string to be stored in the NodeData container.
         /// @return A shared pointer to the newly created node of type literal.
