@@ -13,10 +13,7 @@
 //! Character class intersections are currently bugged
 
 // TODO LIST (ordered by importance)
-// TODO: Implement character class intersections.
-// TODO: Implement a ASTNode type checker method.
-// TODO: Implement an in-place character node data append operation of using literalBuff
-// TODO: Check for OUTPUT_ENABLED flag inside the RegenOutput methods
+// TODO: Create separate classes for ASTNodeData.
 // TODO: Refactor the codebase
 
 //? Stream-related variable definitions
@@ -26,19 +23,24 @@ const char *const TEST_FILE = "test/cases_chclass.txt";
 const char *const OUT_FILE = "test/cases_output.txt";
 
 //? Regen-related flag definition
-const bool REGEN_REGEX_COMPLIANT_FLAG = true;
+const bool REGEN_REGEX_COMPLIANT_FLAG = false;
 
 const size_t NODE_ID_SET_SIZE = 50;
 
+std::string NodeTypeToStr(RegenAST::NodeType nodeType)
+{
+	static std::vector<std::string> CONVERSION_VEC{"ENTRY", "LITERAL", "CHCLASS"};
+
+	return CONVERSION_VEC.at((int)nodeType);
+}
+
 void printASTNode(std::ostream &oStreamRef, std::shared_ptr<RegenAST::ASTNode> nodeRef)
 {
-
 	fmt::print(oStreamRef, "Node {}:\n", nodeRef->GetId());
-	fmt::print(oStreamRef, "\tType: {};\n", NodeTypeToStr(nodeRef->GetDataRef().GetNodeType()));
+	fmt::print(oStreamRef, "\tType: {};\n", NodeTypeToStr(nodeRef->GetDataRef()->GetNodeType()));
 
 	//! fmt::print throws an "invalid utf-8" exception for negated character classes
-	// fmt::print(oStreamRef, "\tLiteral: {};\n", nodeRef->GetDataRef().GetLiteral());
-	oStreamRef << "\tLiteral: " << nodeRef->GetDataRef().GetLiteral() << '\n';
+	oStreamRef << "\tLiteral: " << nodeRef->GetDataRef()->GetLiteral() << '\n';
 
 	for (const auto &child : nodeRef->GetChildrenRef())
 		fmt::print(oStreamRef, "\tChild: {};\n", child->GetId());

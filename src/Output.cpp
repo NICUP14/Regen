@@ -16,34 +16,38 @@ const std::string RegenOutput::WarningMessage::CHCLASS_REDUNDANT_INIT =
 const std::string RegenOutput::WarningMessage::CHCLASS_MISLEADING_RANGE =
     "The parser detected a possibly misleading range-like (fake range) custom character class initializer";
 
-//? Expected fmt::print parameters: contextGroupStr
+//? Expected fmt::print parameters: None
 const std::string RegenOutput::ExceptionMessage::UNTERMINATED_CONSTRUCT =
-    "The specified regen expression contains an unterminated/invalid construct (contextGroup = {})";
+    "The specified Regen expression contains an unterminated/invalid construct";
 
-//? Expected fmt::print parameters: REGEN_REGEX_COMPLIANT_FLAG
+//? Expected fmt::print parameters: None
 const std::string RegenOutput::ExceptionMessage::INVALID_REGEX_RANGE =
-    "The requested range operation is invalid due to the regex compliancy flag (REGEN_REGEX_COMPLIANT_FLAG = {})";
+    "The requested range operation is invalid due to the regex compliancy flag";
 
-//? Expected fmt::print parameters: nodeId, expectedNodeType, invalidNodeType
-const std::string RegenOutput::ExceptionMessage::NODE_DATA_MISMATCH =
-    "The internal type of the node is invalid (expected {}; got {})";
+//? Expected fmt::print parameters: None
+const std::string RegenOutput::ExceptionMessage::INVALID_NODE_DATA_CAST =
+    "The attempted cast from a ASTNodeData object to a ASTChClassNodeData object is invalid";
 
 void RegenOutput::FMTPrintDebug(const std::string &message)
 {
-    fmt::print(fmt::fg(fmt::color::blue), "DEBUG: {}\n", message);
+    if (OUTPUT_ENABLED_FLAG)
+        fmt::print(fmt::fg(fmt::color::blue), "DEBUG: {}\n", message);
 }
 
 void RegenOutput::FMTPrintSuccess(const std::string &message)
 {
-    fmt::print(fmt::fg(fmt::color::green), "SUCCESS: {}\n", message);
+    if (OUTPUT_ENABLED_FLAG)
+        fmt::print(fmt::fg(fmt::color::green), "SUCCESS: {}\n", message);
 }
 
 void RegenOutput::FMTPrintWarning(const std::string &message)
 {
-    fmt::print(stderr, fmt::fg(fmt::color::purple), "WARNING: {}\n", message);
+    if (OUTPUT_ENABLED_FLAG)
+        fmt::print(stderr, fmt::fg(fmt::color::purple), "WARNING: {}\n", message);
 }
 
 void RegenOutput::FMTPrintError(const std::string &message)
 {
-    fmt::print(stderr, fmt::fg(fmt::color::red), "ERROR: {}\n", message);
+    if (OUTPUT_ENABLED_FLAG)
+        fmt::print(stderr, fmt::fg(fmt::color::red), "ERROR: {}\n", message);
 }

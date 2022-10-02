@@ -6,22 +6,14 @@
 #ifndef REGEN_EXCEPTION_HEADER_H
 #define REGEN_EXCEPTION_HEADER_H
 
-/// @brief  Encapsulates all the custom exceptions messages and definitions.
+/// @brief  Encapsulates all the custom exception types.
 namespace RegenException
 {
     class UnterminatedConstructException : public std::exception
     {
     public:
-        explicit UnterminatedConstructException(std::string ctxGrStrRO)
-        {
-            _message = fmt::format(
-                RegenOutput::ExceptionMessage::UNTERMINATED_CONSTRUCT,
-                ctxGrStrRO);
-        }
+        UnterminatedConstructException() = default;
         char const *what() const throw() override;
-
-    private:
-        std::string _message;
     };
 
     class InvalidRegexRangeException : public std::exception
@@ -31,20 +23,11 @@ namespace RegenException
         char const *what() const throw() override;
     };
 
-    class NodeDataMismatchException : public std::exception
+    class InvalidNodeDataCastException : public std::exception
     {
     public:
-        explicit NodeDataMismatchException(std::string expectedNodeTypeStrRO, const std::string_view &invalidNodeTypeRO)
-        {
-            _message = fmt::format(
-                RegenOutput::ExceptionMessage::NODE_DATA_MISMATCH,
-                expectedNodeTypeStrRO,
-                invalidNodeTypeRO);
-        }
+        InvalidNodeDataCastException() = default;
         char const *what() const throw() override;
-
-    private:
-        std::string _message;
     };
 };
 
