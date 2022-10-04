@@ -1,11 +1,11 @@
-#include "Parser.h"
+#include <Regen/Parser.h>
 
-bool RegenParser::Parser::_scanEscape(std::string::iterator &iterRef, const std::string::iterator &endIterRef, char &escapeSeqRef)
+bool RegenParser::Parser::_scanEscape(std::string::const_iterator &iterRef, const std::string::const_iterator &endIter, char &escapeSeqRef)
 {
-    if (iterRef >= endIterRef)
+    if (iterRef >= endIter)
         return false;
 
-    if (*iterRef != '\\' || iterRef + 1 >= endIterRef)
+    if (*iterRef != '\\' || iterRef + 1 >= endIter)
         return false;
 
     iterRef++;
@@ -59,18 +59,18 @@ bool RegenParser::Parser::_scanEscape(std::string::iterator &iterRef, const std:
     return true;
 }
 
-RegenParser::TokenType RegenParser::Parser::_scanDefinedChClass(std::string::iterator &iterRef, const std::string::iterator &endIterRef)
+RegenParser::TokenType RegenParser::Parser::_scanDefinedChClass(std::string::const_iterator &iterRef, const std::string::const_iterator &endIter)
 {
-    if (iterRef >= endIterRef)
+    if (iterRef >= endIter)
         return TokenType::UNDEFINED;
 
-    if (*iterRef != '\\' || iterRef >= endIterRef)
+    if (*iterRef != '\\' || iterRef >= endIter)
         return TokenType::UNDEFINED;
 
     /// @brief Shorthand lambda for bounds and dereference checking of a string iterator
-    static auto iterPointsTo = [&](const std::string::iterator &iter, char ch)
+    static auto iterPointsTo = [&](const std::string::const_iterator &iter, char ch)
     {
-        return iter < endIterRef && *iter == ch;
+        return iter < endIter && *iter == ch;
     };
 
     short iterOff = 2;
@@ -224,15 +224,15 @@ RegenParser::TokenType RegenParser::Parser::_scanDefinedChClass(std::string::ite
     return tokenType;
 }
 
-RegenParser::TokenType RegenParser::Parser::_scanOperator(std::string::iterator &iterRef, const std::string::iterator &endIterRef, std::stack<RegenParser::ContextGroup> &ctxGrStackRef)
+RegenParser::TokenType RegenParser::Parser::_scanOperator(std::string::const_iterator &iterRef, const std::string::const_iterator &endIter, std::stack<ContextGroup> &ctxGrStackRef)
 {
     short iterOff;
     TokenType tokenType;
 
     /// @brief Shorthand lambda for bound and dereference checking of a string iterator
-    static auto iterPointsTo = [&](const std::string::iterator &otherIterRef, char ch)
+    static auto iterPointsTo = [&](const std::string::const_iterator &otherIterRef, char ch)
     {
-        return otherIterRef < endIterRef && *otherIterRef == ch;
+        return otherIterRef < endIter && *otherIterRef == ch;
     };
 
     /// @brief Shorthand lambda for iterOff and type assignments
@@ -270,14 +270,14 @@ RegenParser::TokenType RegenParser::Parser::_scanOperator(std::string::iterator 
 
     //? CHCLASS_RANGE check placeholder
     case '-':
-        if (!cmpStackTop(ctxGrStackRef, RegenParser::ContextGroup::CHCLASS))
+        if (!cmpStackTop(ctxGrStackRef, ContextGroup::CHCLASS))
             return TokenType::UNDEFINED;
         setOffNType(1, TokenType::CHCLASS_RANGE);
         break;
 
     //? CHCLASS_INT check placeholder
     case '&':
-        if (!cmpStackTop(ctxGrStackRef, RegenParser::ContextGroup::CHCLASS) ||
+        if (!cmpStackTop(ctxGrStackRef, ContextGroup::CHCLASS) ||
             !iterPointsTo(iterRef + 1, '&') ||
             REGEN_REGEX_COMPLIANT_FLAG)
             return TokenType::UNDEFINED;
@@ -292,18 +292,18 @@ RegenParser::TokenType RegenParser::Parser::_scanOperator(std::string::iterator 
     return tokenType;
 }
 
-RegenParser::TokenType RegenParser::Parser::_scanToken(std::string::iterator &iterRef, const std::string::iterator &endIterRef, std::stack<ContextGroup> &ctxGrStackRef)
+RegenParser::TokenType RegenParser::Parser::_scanToken(std::string::const_iterator &iterRef, const std::string::const_iterator &endIter, std::stack<ContextGroup> &ctxGrStackRef)
 {
-    if (iterRef >= endIterRef)
+    if (iterRef >= endIter)
         return TokenType::UNDEFINED;
 
-    if (TokenType tokenType; (tokenType = _scanDefinedChClass(iterRef, endIterRef)) != TokenType::UNDEFINED)
+    if (TokenType tokenType; (tokenType = _scanDefinedChClass(iterRef, endIter)) != TokenType::UNDEFINED)
         return tokenType;
 
-    return _scanOperator(iterRef, endIterRef, ctxGrStackRef);
+    return _scanOperator(iterRef, endIter, ctxGrStackRef);
 }
 
-void RegenParser::Parser::_setAbsNodeTypeNFlags(RegenParser::TokenType tokenType, ContextGroup prevCtxGr, RegenParser::AbstractNodeType &absNodeTypeRef, bool &createNodeFlagRef, bool &chClassRangeFlagRef, bool &chClassIntersectFlagRef)
+void RegenParser::Parser::_setAbsNodeTypeNFlags(TokenType tokenType, ContextGroup prevCtxGr, AbstractNodeType &absNodeTypeRef, bool &createNodeFlagRef, bool &chClassRangeFlagRef, bool &chClassIntersectFlagRef)
 {
     if (tokenType == TokenType::CHCLASS_RANGE)
     {
@@ -436,23 +436,23 @@ void RegenParser::Parser::_setAbsNodeTypeNFlags(RegenParser::TokenType tokenType
     }
 }
 
-std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::_createNode(AbstractNodeType absNodeType, int &id, std::shared_ptr<RegenAST::ASTNode> parentRef)
+std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::_createNode(AbstractNodeType absNodeType, int &id, std::shared_ptr<RegenAST::ASTNode> parentPtr)
 {
     /// @brief Shorthand lambda for returning a pointer to a newly allocated node.
-    static auto allocNode = [](int nodeId, RegenAST::NodeType nodeType, std::shared_ptr<RegenAST::ASTNode> nodeParentRef)
+    static auto allocNode = [](int nodeId, RegenAST::NodeType nodeType, std::shared_ptr<RegenAST::ASTNode> nodeParentPtr)
     {
-        auto childRef = std::make_shared<RegenAST::ASTNode>(nodeId, nodeType, nodeParentRef);
-        nodeParentRef->GetChildrenRef().emplace_back(childRef);
+        auto childRef = std::make_shared<RegenAST::ASTNode>(nodeId, nodeType, nodeParentPtr);
+        nodeParentPtr->GetChildrenRef().emplace_back(childRef);
 
         return childRef;
     };
 
     /// Creates character class nodes when needed.
     if (absNodeType == AbstractNodeType::LITERAL &&
-        parentRef->GetDataRef()->GetNodeType() != RegenAST::NodeType::LITERAL)
+        parentPtr->GetNodeDataPtr()->GetNodeType() != RegenAST::NodeType::LITERAL)
     {
         id++;
-        return allocNode(id, RegenAST::NodeType::LITERAL, parentRef);
+        return allocNode(id, RegenAST::NodeType::LITERAL, parentPtr);
     }
 
     /// Creates literal nodes when needed.
@@ -460,15 +460,15 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::_createNode(AbstractNode
         absNodeType < AbstractNodeType::GROUP)
     {
         id++;
-        return allocNode(id, RegenAST::NodeType::CHCLASS, parentRef);
+        return allocNode(id, RegenAST::NodeType::CHCLASS, parentPtr);
     }
 
     return nullptr;
 }
 
-void RegenParser::Parser::_initNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, RegenParser::AbstractNodeType absNodeType)
+void RegenParser::Parser::_initNode(std::shared_ptr<RegenAST::ASTNode> nodePtr, AbstractNodeType absNodeType)
 {
-    auto &chClassDataRef = RegenAST::CastToChClassNodeData(*nodeRef->GetDataRef());
+    auto &chClassDataRef = RegenAST::CastToChClassNodeData(*nodePtr->GetNodeDataPtr());
 
     /// Performs the default negated character class initialization procedure.
     if (absNodeType >= AbstractNodeType::NCHCLASS)
@@ -551,10 +551,10 @@ void RegenParser::Parser::_initNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, 
     }
 }
 
-void RegenParser::Parser::_initNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, bool rangeStartChIsSet, bool rangeStopChIsSet, char rangeStartCh, char rangeStopCh)
+void RegenParser::Parser::_initNode(std::shared_ptr<RegenAST::ASTNode> nodePtr, bool rangeStartChIsSet, bool rangeStopChIsSet, char rangeStartCh, char rangeStopCh)
 {
 
-    auto &chClassDataRef = RegenAST::CastToChClassNodeData(*nodeRef->GetDataRef());
+    const auto &chClassDataRef = RegenAST::CastToChClassNodeData(*nodePtr->GetNodeDataPtr());
 
     //? Misleading range check placeholder (#1)
     if (!rangeStartChIsSet && !rangeStopChIsSet)
@@ -568,38 +568,56 @@ void RegenParser::Parser::_initNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, 
         RegenOutput::FMTPrintWarning(RegenOutput::WarningMessage::CHCLASS_MISLEADING_RANGE);
         chClassDataRef.Set("-");
         if (rangeStopCh != '-')
-            chClassDataRef.Set(std::string(1, rangeStopCh));
+        {
+            chClassDataRef.Reset(rangeStopCh);
+            chClassDataRef.Set((std::string) "" + rangeStopCh);
+        }
     }
     //? Misleading range check placeholder (#3)
     else if (!rangeStopChIsSet)
     {
         RegenOutput::FMTPrintWarning(RegenOutput::WarningMessage::CHCLASS_MISLEADING_RANGE);
-        chClassDataRef.Set(std::string(1, rangeStartCh));
+        chClassDataRef.Set("-");
         if (rangeStartCh != '-')
-            chClassDataRef.Set("-");
+        {
+            chClassDataRef.Reset(rangeStartCh);
+            chClassDataRef.Set((std::string) "" + rangeStartCh);
+        }
     }
     else
+    {
+        if (rangeStartCh > rangeStopCh)
+        {
+            if (REGEN_REGEX_COMPLIANT_FLAG)
+                throw RegenException::InvalidRegexRangeException();
+
+            std::swap(rangeStartCh, rangeStopCh);
+        }
+
         /// Performs character class range initialization procedure.
+        chClassDataRef.Reset(rangeStartCh);
+        chClassDataRef.Reset(rangeStopCh);
         chClassDataRef.Set(rangeStartCh, rangeStopCh);
+    }
 }
 
-void RegenParser::Parser::_normalizeAST(std::vector<std::shared_ptr<RegenAST::ASTNode>> &nodeRefVec)
+void RegenParser::Parser::_normalizeAST(std::vector<std::shared_ptr<RegenAST::ASTNode>> &nodePtrVec)
 {
     /// @brief Shorthand lambda for completely removing a node from the AST.
-    static auto removeNodeFromAST = [](std::shared_ptr<RegenAST::ASTNode> nodeRef)
+    static auto removeNodeFromAST = [](std::shared_ptr<RegenAST::ASTNode> nodePtr)
     {
-        auto parentRef = nodeRef->GetParent();
+        auto parentPtr = nodePtr->GetParentPtr();
 
-        parentRef->GetChildrenRef().remove(nodeRef);
-        for (const auto &childRef : nodeRef->GetChildrenRef())
-            parentRef->GetChildrenRef().emplace_back(childRef);
+        parentPtr->GetChildrenRef().remove(nodePtr);
+        for (const auto &childRef : nodePtr->GetChildrenRef())
+            parentPtr->GetChildrenRef().emplace_back(childRef);
     };
 
-    auto iter = nodeRefVec.begin();
-    while (iter < nodeRefVec.end())
+    auto iter = nodePtrVec.begin();
+    while (iter < nodePtrVec.end())
     {
         /// Performs the character class normalization procedure.
-        if (auto nodeDataRef = (*iter)->GetDataRef();
+        if (auto nodeDataRef = (*iter)->GetNodeDataPtr();
             nodeDataRef->GetNodeType() == RegenAST::NodeType::CHCLASS)
         {
             RegenAST::CastToChClassNodeData(*nodeDataRef).Normalize();
@@ -612,7 +630,7 @@ void RegenParser::Parser::_normalizeAST(std::vector<std::shared_ptr<RegenAST::AS
 
                 /// Performs an in-place removal of the vector element.
                 iter++;
-                nodeRefVec.erase(iter - 1);
+                nodePtrVec.erase(iter - 1);
 
                 continue;
             }
@@ -622,18 +640,18 @@ void RegenParser::Parser::_normalizeAST(std::vector<std::shared_ptr<RegenAST::AS
     }
 }
 
-std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::ParseExpression(std::string &expressionRef)
+std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::ParseExpression(const std::string &expression)
 {
-    auto rootRef = std::make_shared<RegenAST::ASTNode>(0, RegenAST::NodeType::ENTRY, nullptr);
+    auto rootPtr = std::make_shared<RegenAST::ASTNode>(0, RegenAST::NodeType::ENTRY, nullptr);
 
     /// The root node is defined in a circular manner.
-    rootRef->SetParent(rootRef);
+    rootPtr->SetParent(rootPtr);
 
-    if (expressionRef.empty())
-        return rootRef;
+    if (expression.empty())
+        return rootPtr;
 
     /// Checks for a trailing backslash in the given Regen expression.
-    if (expressionRef.back() == '\\' && REGEN_REGEX_COMPLIANT_FLAG)
+    if (expression.back() == '\\' && REGEN_REGEX_COMPLIANT_FLAG)
         throw RegenException::UnterminatedConstructException();
 
     //? Parser flag declarations placeholder.
@@ -649,16 +667,16 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::ParseExpression(std::str
 
     //? AST-related auxiliary variable declarations placeholder.
     int currId = 0;
-    std::stack<RegenParser::ContextGroup> ctxGrStack;
-    std::shared_ptr<RegenAST::ASTNode> nodeRef = rootRef;
-    std::vector<std::shared_ptr<RegenAST::ASTNode>> nodeRefVec;
+    std::stack<ContextGroup> ctxGrStack;
+    std::shared_ptr<RegenAST::ASTNode> nodePtr = rootPtr;
+    std::vector<std::shared_ptr<RegenAST::ASTNode>> nodePtrVec;
 
-    auto iter = expressionRef.begin();
-    auto endIter = expressionRef.end();
-    while (iter != expressionRef.end())
+    auto iter = expression.begin();
+    auto endIter = expression.end();
+    while (iter != expression.end())
     {
         ContextGroup prevCtxGr = ctxGrStack.empty() ? ContextGroup::NONE : ctxGrStack.top();
-        TokenType tokenType = RegenParser::Parser::_scanToken(iter, endIter, ctxGrStack);
+        TokenType tokenType = _scanToken(iter, endIter, ctxGrStack);
         AbstractNodeType absNodeType;
 
         //? Flag and abstract Node type setter procedure placeholder.
@@ -673,11 +691,11 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::ParseExpression(std::str
         //? Node creation procedure placeholder.
         if (createNodeFlag)
         {
-            if (auto newNodeRef = _createNode(absNodeType, currId, nodeRef); newNodeRef != nullptr)
-                nodeRef = newNodeRef;
+            if (auto newNodeRef = _createNode(absNodeType, currId, nodePtr); newNodeRef != nullptr)
+                nodePtr = newNodeRef;
 
-            if (nodeRefVec.empty() || nodeRef != nodeRefVec.back())
-                nodeRefVec.push_back(nodeRef);
+            if (nodePtrVec.empty() || nodePtr != nodePtrVec.back())
+                nodePtrVec.push_back(nodePtr);
 
             createNodeFlag = false;
         }
@@ -685,27 +703,12 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::ParseExpression(std::str
         //? Pre-defined initialization procedure placeholder.
         if (absNodeType >= AbstractNodeType::CHCLASS &&
             absNodeType < AbstractNodeType::GROUP)
-            _initNode(nodeRef, absNodeType);
-
-        //? Range initialization procedure placeholder.
-        if (chClassRangeFlag)
-        {
-            _initNode(
-                nodeRef,
-                rangeStartChIsSet,
-                rangeStopChIsSet,
-                rangeStartCh,
-                rangeStopCh);
-
-            rangeStartChIsSet = false;
-            rangeStopChIsSet = false;
-            chClassRangeFlag = false;
-        }
+            _initNode(nodePtr, absNodeType);
 
         //? Intersect initialization procedure placeholder. (lazy initialization)
         if (chClassIntersectFlag)
         {
-            auto &chClassDataRef = RegenAST::CastToChClassNodeData(*nodeRef->GetDataRef());
+            auto &chClassDataRef = RegenAST::CastToChClassNodeData(*nodePtr->GetNodeDataPtr());
 
             chClassDataRef.SetIntersectFlag(true);
             chClassDataRef.SetInvertFlag(false);
@@ -731,8 +734,23 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::ParseExpression(std::str
                 rangeStopCh = resultCh;
             }
 
-            nodeRef->GetDataRef()->Append(resultCh);
+            nodePtr->GetNodeDataPtr()->Append(resultCh);
             iter++;
+
+            //? Range initialization procedure placeholder.
+            if (chClassRangeFlag)
+            {
+                _initNode(
+                    nodePtr,
+                    rangeStartChIsSet,
+                    rangeStopChIsSet,
+                    rangeStartCh,
+                    rangeStopCh);
+
+                rangeStartChIsSet = false;
+                rangeStopChIsSet = false;
+                chClassRangeFlag = false;
+            }
         }
     }
 
@@ -740,7 +758,7 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::ParseExpression(std::str
         throw RegenException::UnterminatedConstructException();
 
     //? AST normalization procedure placeholder.
-    _normalizeAST(nodeRefVec);
+    _normalizeAST(nodePtrVec);
 
-    return rootRef;
+    return rootPtr;
 }

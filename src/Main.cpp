@@ -6,15 +6,11 @@
 #include <memory>
 #include <fmt/core.h>
 #include <fmt/ostream.h>
-#include "Parser.h"
-#include "AST.h"
+#include <Regen/Parser.h>
+#include <Regen/AST.h>
 
-//! BUG LIST
-//! Character class intersections are currently bugged
-
-// TODO LIST (ordered by importance)
-// TODO: Create separate classes for ASTNodeData.
-// TODO: Refactor the codebase
+#ifndef REGEN_HEADER_ONLY
+#define REGEN_HEADER_ONLY
 
 //? Stream-related variable definitions
 const bool USE_STDIN = true;
@@ -37,10 +33,10 @@ std::string NodeTypeToStr(RegenAST::NodeType nodeType)
 void printASTNode(std::ostream &oStreamRef, std::shared_ptr<RegenAST::ASTNode> nodeRef)
 {
 	fmt::print(oStreamRef, "Node {}:\n", nodeRef->GetId());
-	fmt::print(oStreamRef, "\tType: {};\n", NodeTypeToStr(nodeRef->GetDataRef()->GetNodeType()));
+	fmt::print(oStreamRef, "\tType: {};\n", NodeTypeToStr(nodeRef->GetNodeDataPtr()->GetNodeType()));
 
 	//! fmt::print throws an "invalid utf-8" exception for negated character classes
-	oStreamRef << "\tLiteral: " << nodeRef->GetDataRef()->GetLiteral() << '\n';
+	oStreamRef << "\tLiteral: " << nodeRef->GetNodeDataPtr()->GetLiteral() << '\n';
 
 	for (const auto &child : nodeRef->GetChildrenRef())
 		fmt::print(oStreamRef, "\tChild: {};\n", child->GetId());
@@ -118,3 +114,5 @@ int main()
 
 	return 0;
 }
+
+#endif

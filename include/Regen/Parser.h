@@ -1,12 +1,12 @@
-#include <iostream>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 #include <stack>
-#include <memory>
-#include "AST.h"
-#include "Exception.h"
-#include "Output.h"
+#include <cmath>
+#include <Regen/AST.h>
+#include <Regen/Output.h>
+#include <Regen/Exception.h>
 
 #ifndef REGEN_PARSER_HEADER_H
 #define REGEN_PARSER_HEADER_H
@@ -108,23 +108,23 @@ namespace RegenParser
     public:
         /// @brief Represents a char-by-char parser.
         /// @return Returns the AST representation of the given Regen expression.
-        static std::shared_ptr<RegenAST::ASTNode> ParseExpression(std::string &expressionRef);
+        static std::shared_ptr<RegenAST::ASTNode> ParseExpression(const std::string &expression);
 
     protected:
         /// @brief Checks if there exists an escape sequence pointed by the given modifiable iterator and stores the character representation of the sequence in escapeSeqRef.
         /// @return Returns true if there exists a character equivalent of the escape sequence pointed by the given modifiable iterator, otherwise false.
-        static bool _scanEscape(std::string::iterator &iterRef, const std::string::iterator &endIterRef, char &escapeSeqRef);
+        static bool _scanEscape(std::string::const_iterator &iterRef, const std::string::const_iterator &endIter, char &escapeSeqRef);
 
         /// @return Returns the type of token corresponding to the pre-defined character class constructs of the Regen language pointed by the given modifiable operator.
         /// @return The method supports both regex compliant and non-compliant pre-defined character class constructs.
-        static TokenType _scanDefinedChClass(std::string::iterator &iterRef, const std::string::iterator &endIterRef);
+        static TokenType _scanDefinedChClass(std::string::const_iterator &iterRef, const std::string::const_iterator &endIter);
 
         /// @return Returns the type of token corresponding to the operator construct of the Regen language pointed by the given modifiable iterator.
-        static TokenType _scanOperator(std::string::iterator &iterRef, const std::string::iterator &endIterRef, std::stack<ContextGroup> &ctxGrStackRef);
+        static TokenType _scanOperator(std::string::const_iterator &iterRef, const std::string::const_iterator &endIter, std::stack<ContextGroup> &ctxGrStackRef);
 
         /// @brief The method acts as a wrapper incorporating all scanning-related functions. (except the _scanEscape method)
         /// @return Returns the type of token corresponding to the Regen language construct pointed by the given modifiable iterator.
-        static TokenType _scanToken(std::string::iterator &iterRef, const std::string::iterator &endIterRef, std::stack<ContextGroup> &ctxGrStackRef);
+        static TokenType _scanToken(std::string::const_iterator &iterRef, const std::string::const_iterator &endIter, std::stack<ContextGroup> &ctxGrStackRef);
 
         /// @brief Converts the given token type to its corresponding abstract node type. (assignment might be skipped)
         /// @brief Additionally sets the createNode, chRangeFlag, chClassIntersectFlag flags in accordance with the determined abstract node type.
@@ -133,16 +133,16 @@ namespace RegenParser
         /// @brief Performs duplicate node checking and creates a new node when needed.
         /// WARNING: The method always returns nullptr on a failed duplicate node checks.
         /// @return Returns a shared pointer to a newly allocated if a new node is needed.
-        static std::shared_ptr<RegenAST::ASTNode> _createNode(AbstractNodeType absNodeType, int &id, std::shared_ptr<RegenAST::ASTNode> parentRef);
+        static std::shared_ptr<RegenAST::ASTNode> _createNode(AbstractNodeType absNodeType, int &id, std::shared_ptr<RegenAST::ASTNode> parentPtr);
 
         /// @brief Initializes the NodeData container of a node in accordance with the given abstract node type. (acts as the pre-defined character class initializer)
-        static void _initNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, AbstractNodeType absNodeType);
+        static void _initNode(std::shared_ptr<RegenAST::ASTNode> nodePtr, AbstractNodeType absNodeType);
 
         /// @brief Performs fake-range checking and initializes the NodeData container of a node to the given range. (acts both as the range custom character class initializer and custom initializer)
-        static void _initNode(std::shared_ptr<RegenAST::ASTNode> nodeRef, bool rangeStartChIsSet, bool rangeStopChIsSet, char rangeStartCh, char rangeStopCh);
+        static void _initNode(std::shared_ptr<RegenAST::ASTNode> nodePtr, bool rangeStartChIsSet, bool rangeStopChIsSet, char rangeStartCh, char rangeStopCh);
 
         /// @brief Normalizes the AST's nodes. The method removes empty nodes and performs character class normalizations.
-        static void _normalizeAST(std::vector<std::shared_ptr<RegenAST::ASTNode>> &nodeRefVec);
+        static void _normalizeAST(std::vector<std::shared_ptr<RegenAST::ASTNode>> &nodePtrVecRef);
     };
 }
 

@@ -38,6 +38,6 @@ namespace RegenOutput
     void FMTPrintWarning(const std::string &message);
 
     void FMTPrintError(const std::string &message);
-};
+}
 
 #endif

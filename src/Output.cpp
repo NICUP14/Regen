@@ -1,4 +1,4 @@
-#include "Output.h"
+#include <Regen/Output.h>
 
 //? Expected fmt::print parameters: expressionCh
 const std::string RegenOutput::WarningMessage::CHCLASS_DUPLICATE_CHARACTER =

@@ -1,7 +1,9 @@
 #include <string>
 #include <exception>
+#include <Regen/Output.h>
+
+#define FMT_HEADER_ONLY
 #include <fmt/core.h>
-#include "Output.h"
 
 #ifndef REGEN_EXCEPTION_HEADER_H
 #define REGEN_EXCEPTION_HEADER_H
@@ -29,6 +31,6 @@ namespace RegenException
         InvalidNodeDataCastException() = default;
         char const *what() const throw() override;
     };
-};
+}
 
 #endif

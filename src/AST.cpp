@@ -1,4 +1,4 @@
-#include "AST.h"
+#include <Regen/AST.h>
 
 RegenAST::ASTChClassNodeData &RegenAST::CastToChClassNodeData(RegenAST::ASTNodeData &nodeData)
 {
@@ -17,7 +17,7 @@ RegenAST::NodeType RegenAST::ASTNodeData::GetNodeType() const
 
 std::string RegenAST::ASTNodeData::GetLiteral()
 {
-    return _literal;
+    return _getLiteral();
 }
 
 bool RegenAST::ASTNodeData::Empty() const
@@ -35,33 +35,39 @@ void RegenAST::ASTNodeData::Append(char ch)
     _literal += ch;
 }
 
-void RegenAST::ASTNodeData::_setLiteral(const std::string_view &literalRO)
-{
-    _literal = literalRO;
-}
-
 std::string RegenAST::ASTNodeData::_getLiteral() const
 {
     return _literal;
 }
 
+void RegenAST::ASTNodeData::_setLiteral(const std::string_view &literalRO)
+{
+    _literal = literalRO;
+}
+
 //? ASTChClassNodeData method definitions placeholder.
+
+RegenAST::ASTChClassNodeData::ASTChClassNodeData()
+{
+    SetNodeType(NodeType::CHCLASS);
+
+    _primaryChSetPtr = std::make_shared<std::bitset<CH_SET_SIZE>>();
+    _currChSetPtr = _primaryChSetPtr;
+}
 
 bool RegenAST::ASTChClassNodeData::Empty() const
 {
-    return (_chSetIntersectFlag ? _auxiliaryChSet : _primaryChSet).none();
+    return (_currChSetPtr.lock())->none();
 }
 
 std::string RegenAST::ASTChClassNodeData::GetLiteral()
 {
-
     std::string literal;
-    std::bitset<CH_SET_SIZE> const &chSetRef =
-        _chSetIntersectFlag ? _auxiliaryChSet : _primaryChSet;
+    auto currChSetPtr = _currChSetPtr.lock();
 
-    literal.reserve(chSetRef.count());
+    literal.reserve(currChSetPtr->count());
     for (unsigned char chRange = 0; chRange < CH_SET_SIZE; chRange++)
-        if (chSetRef.test(chRange))
+        if (currChSetPtr->test(chRange))
             literal += chRange;
 
     _setLiteral(literal);
@@ -72,71 +78,76 @@ std::string RegenAST::ASTChClassNodeData::GetLiteral()
 void RegenAST::ASTChClassNodeData::Append(char ch)
 {
     Set(ch);
-    //? This method shouldn't be called by a ASTClassNodeData object.
 }
 
 void RegenAST::ASTChClassNodeData::SetInvertFlag(bool value)
 {
-    _chSetInvertFlag = value;
+    _invertFlag = value;
 }
 
 void RegenAST::ASTChClassNodeData::SetIntersectFlag(bool value)
 {
-    _chSetIntersectFlag = value;
-}
-
-void RegenAST::ASTChClassNodeData::Reset()
-{
-    std::bitset<CH_SET_SIZE> &chSetRef =
-        _chSetIntersectFlag ? _auxiliaryChSet : _primaryChSet;
-
-    if (!_chSetInvertFlag)
-        chSetRef.reset();
+    if (!value)
+    {
+        _currChSetPtr = _primaryChSetPtr;
+        return;
+    }
     else
-        chSetRef |= ~chSetRef; //? Sets all the set's elements to true.
+    {
+        if (_auxiliaryChSetPtr == nullptr)
+            _auxiliaryChSetPtr = std::make_shared<std::bitset<CH_SET_SIZE>>();
+
+        _currChSetPtr = _auxiliaryChSetPtr;
+    }
 }
 
-void RegenAST::ASTChClassNodeData::Set(char ch)
+void RegenAST::ASTChClassNodeData::Reset() const
 {
-    std::bitset<CH_SET_SIZE> &chSetRef =
-        _chSetIntersectFlag ? _auxiliaryChSet : _primaryChSet;
+    auto currChSetPtr = _currChSetPtr.lock();
+
+    if (!_invertFlag)
+        currChSetPtr->reset();
+    else
+        *currChSetPtr |= ~(*currChSetPtr); //? Sets all the set's elements to true.
+}
+
+void RegenAST::ASTChClassNodeData::Reset(char ch) const
+{
+    _currChSetPtr.lock()->set(ch, _invertFlag);
+}
+
+void RegenAST::ASTChClassNodeData::Set(char ch) const
+{
+    auto currChSetPtr = _currChSetPtr.lock();
 
     //? Checks if the character is already present in the set.
-    if (chSetRef.test(ch) != _chSetInvertFlag)
+    if (currChSetPtr->test(ch) != _invertFlag)
         RegenOutput::FMTPrintWarning(fmt::format(
             RegenOutput::WarningMessage::CHCLASS_DUPLICATE_CHARACTER, ch));
 
-    chSetRef.set(ch, !_chSetInvertFlag);
+    currChSetPtr->set(ch, !_invertFlag);
 }
 
-void RegenAST::ASTChClassNodeData::Set(const std::string_view &strRO)
+void RegenAST::ASTChClassNodeData::Set(const std::string_view &strRO) const
 {
     for (char ch : strRO)
         Set(ch);
 }
 
-void RegenAST::ASTChClassNodeData::Set(char startCh, char stopCh)
+void RegenAST::ASTChClassNodeData::Set(char startCh, char stopCh) const
 {
-    if (startCh > stopCh)
-    {
-        if (REGEN_REGEX_COMPLIANT_FLAG)
-            throw RegenException::InvalidRegexRangeException();
-
-        std::swap(startCh, stopCh);
-    }
-
     for (unsigned char chRange = startCh; chRange <= stopCh; chRange++)
         Set(chRange);
 }
 
 void RegenAST::ASTChClassNodeData::Normalize()
 {
-    if (_chSetIntersectFlag)
-        _primaryChSet &= _auxiliaryChSet; //? Intersects the two character sets.
+    if (_auxiliaryChSetPtr != nullptr)
+        *_primaryChSetPtr &= *_auxiliaryChSetPtr;
 
-    _chSetIntersectFlag = false;
-    _chSetInvertFlag = false;
-    _auxiliaryChSet.reset();
+    _invertFlag = false;
+    _auxiliaryChSetPtr = nullptr;
+    _currChSetPtr = _primaryChSetPtr;
 }
 
 //? ASTNode method definitions placeholder.
@@ -146,22 +157,22 @@ int RegenAST::ASTNode::GetId() const
     return _id;
 }
 
-std::shared_ptr<RegenAST::ASTNodeData> &RegenAST::ASTNode::GetDataRef()
+std::shared_ptr<RegenAST::ASTNodeData> RegenAST::ASTNode::GetNodeDataPtr() const
 {
-    return _nodeData;
+    return _nodeDataPtr;
 }
 
-std::shared_ptr<RegenAST::ASTNode> RegenAST::ASTNode::GetParent() const
+std::shared_ptr<RegenAST::ASTNode> RegenAST::ASTNode::GetParentPtr() const
 {
-    return _parent;
+    return _parentPtr;
 }
 
 std::list<std::shared_ptr<RegenAST::ASTNode>> &RegenAST::ASTNode::GetChildrenRef()
 {
-    return _children;
+    return _childrenList;
 }
 
-void RegenAST::ASTNode::SetParent(std::shared_ptr<RegenAST::ASTNode> parent)
+void RegenAST::ASTNode::SetParent(std::shared_ptr<RegenAST::ASTNode> parentPtr)
 {
-    _parent = parent;
+    _parentPtr = parentPtr;
 }

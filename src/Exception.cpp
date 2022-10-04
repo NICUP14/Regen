@@ -1,4 +1,4 @@
-#include "Exception.h"
+#include <Regen/Exception.h>
 
 char const *RegenException::UnterminatedConstructException::what() const throw()
 {

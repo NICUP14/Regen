@@ -5,7 +5,7 @@
 #include <memory>
 #include <algorithm>
 #include <functional>
-#include "Exception.h"
+#include <Regen/Exception.h>
 
 #ifndef REGEN_AST_HEADER_H
 #define REGEN_AST_HEADER_H
@@ -30,6 +30,7 @@ namespace RegenAST
     class ASTNodeData
     {
     public:
+        /// @brief The virtual destructor of the ASTNodeData class.
         virtual ~ASTNodeData() = default;
 
         /// @return Returns the type of node of the current object.
@@ -52,7 +53,8 @@ namespace RegenAST
         std::string _literal;
 
     protected:
-        /// @return Returns the string representation of the current object. (bypasses the overriden GetLiteral method)
+        /// @brief Provides derived classes to bypass the overriden GetLiteral method.
+        /// @return Returns the same value returned by the GetLiteral method.
         std::string _getLiteral() const;
 
         /// @brief Sets the given string as the new container of the current object.
@@ -62,8 +64,10 @@ namespace RegenAST
     class ASTChClassNodeData : public ASTNodeData
     {
     public:
-        ASTChClassNodeData() { SetNodeType(NodeType::CHCLASS); };
+        /// @brief The custom constructor of the ASTChClassNodeData class.
+        ASTChClassNodeData();
 
+        /// @brief The custom destructor of the ASTChClassNodeData class.
         ~ASTChClassNodeData() override = default;
 
         /// @returns Returns whether the current object's data is empty.
@@ -72,7 +76,7 @@ namespace RegenAST
         /// @return Returns the string representation of the current object.
         std::string GetLiteral() override;
 
-        /// @brief Doesn't do anything. (overrides the base method for the added safety)
+        /// @brief Overrides the base method to provide an alias for Set(char).
         void Append(char ch) override;
 
         /// @brief Sets the character set invert flag to the specified value.
@@ -81,26 +85,29 @@ namespace RegenAST
         /// @brief Sets the character set intersect flag to the specified value.
         void SetIntersectFlag(bool value);
 
-        /// @brief Sets all the vales of the set in accordance with the invert flag.
-        void Reset();
+        /// @brief Resets all the vales of the set in accordance with the invert flag.
+        void Reset() const;
+
+        /// @brief Resets the value at the given character of the set in accordance with the invert flag.
+        void Reset(char ch) const;
 
         /// @brief Sets the set's values corresponding the given character in accordance with the invert flag.
-        void Set(char ch);
+        void Set(char ch) const;
 
         /// @brief Sets the set's values corresponding the characters in the given string in accordance with the invert flag.
-        void Set(const std::string_view &strRO);
+        void Set(const std::string_view &strRO) const;
 
         /// @brief Sets the set's values corresponding the characters in the specified range in accordance with the invert flag.
-        void Set(char startCh, char stopCh);
+        void Set(char startCh, char stopCh) const;
 
         /// @brief Merges the two character sets and resets the flags.
         void Normalize();
 
     private:
-        std::bitset<CH_SET_SIZE> _primaryChSet;
-        std::bitset<CH_SET_SIZE> _auxiliaryChSet;
-        bool _chSetInvertFlag = false;
-        bool _chSetIntersectFlag = false;
+        bool _invertFlag = false;
+        std::weak_ptr<std::bitset<CH_SET_SIZE>> _currChSetPtr;
+        std::shared_ptr<std::bitset<CH_SET_SIZE>> _primaryChSetPtr;
+        std::shared_ptr<std::bitset<CH_SET_SIZE>> _auxiliaryChSetPtr = nullptr;
     };
 
     /// @brief Represents a node of the Regen AST.
@@ -108,14 +115,14 @@ namespace RegenAST
     {
     public:
         /// @brief The custom constructor of the ASTNode class.
-        explicit ASTNode(int id, NodeType type, std::shared_ptr<ASTNode> parent) : _id(id), _parent(parent)
+        explicit ASTNode(int id, NodeType type, std::shared_ptr<ASTNode> parent) : _id(id), _parentPtr(parent)
         {
             if (type == NodeType::CHCLASS)
-                _nodeData = std::make_unique<ASTChClassNodeData>();
+                _nodeDataPtr = std::make_unique<ASTChClassNodeData>();
             else
-                _nodeData = std::make_unique<ASTNodeData>();
+                _nodeDataPtr = std::make_unique<ASTNodeData>();
 
-            _nodeData->SetNodeType(type);
+            _nodeDataPtr->SetNodeType(type);
         }
 
         /// @brief The default constructor of the ASTNode class.
@@ -128,10 +135,10 @@ namespace RegenAST
         int GetId() const;
 
         /// @return Returns a reference to the internal ASTNodeData container of the current object.
-        std::shared_ptr<ASTNodeData> &GetDataRef();
+        std::shared_ptr<ASTNodeData> GetNodeDataPtr() const;
 
         /// @return Returns a shared pointer to the parent of the curent object.
-        std::shared_ptr<ASTNode> GetParent() const;
+        std::shared_ptr<ASTNode> GetParentPtr() const;
 
         /// @return Returns a reference to the internal std::list of shared pointers pointing to the children of the node
         std::list<std::shared_ptr<ASTNode>> &GetChildrenRef();
@@ -141,14 +148,14 @@ namespace RegenAST
 
     private:
         int _id;
-        std::shared_ptr<ASTNodeData> _nodeData;
-        std::shared_ptr<ASTNode> _parent;
-        std::list<std::shared_ptr<ASTNode>> _children;
+        std::shared_ptr<ASTNode> _parentPtr;
+        std::shared_ptr<ASTNodeData> _nodeDataPtr;
+        std::list<std::shared_ptr<ASTNode>> _childrenList;
     };
 
     /// @brief Attempts to cast the given ASTNodeData object to a ASTChClassNodeData object.
     /// @return Returns the ASTChClassNodeData representation of the given ASTNodeData object.
     ASTChClassNodeData &CastToChClassNodeData(ASTNodeData &nodeData);
-};
+}
 
 #endif
