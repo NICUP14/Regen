@@ -2,11 +2,8 @@
 #include <exception>
 #include <Regen/Output.h>
 
-#define FMT_HEADER_ONLY
-#include <fmt/core.h>
-
-#ifndef REGEN_EXCEPTION_HEADER_H
-#define REGEN_EXCEPTION_HEADER_H
+#ifndef REGEN_EXCEPTION_HEADER
+#define REGEN_EXCEPTION_HEADER
 
 /// @brief  Encapsulates all the custom exception types.
 namespace RegenException

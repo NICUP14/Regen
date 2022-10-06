@@ -26,7 +26,7 @@ const std::string RegenOutput::ExceptionMessage::INVALID_REGEX_RANGE =
 
 //? Expected fmt::print parameters: None
 const std::string RegenOutput::ExceptionMessage::INVALID_NODE_DATA_CAST =
-    "The attempted cast from a ASTNodeData object to a ASTChClassNodeData object is invalid";
+    "The attempted cast from a NodeData object to a ChClassNodeData object is invalid";
 
 void RegenOutput::FMTPrintDebug(const std::string &message)
 {

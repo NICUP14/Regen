@@ -4,12 +4,12 @@
 #include <vector>
 #include <stack>
 #include <cmath>
-#include <Regen/AST.h>
 #include <Regen/Output.h>
 #include <Regen/Exception.h>
+#include <Regen/AST.h>
 
-#ifndef REGEN_PARSER_HEADER_H
-#define REGEN_PARSER_HEADER_H
+#ifndef REGEN_PARSER_HEADER
+#define REGEN_PARSER_HEADER
 
 extern const bool REGEN_REGEX_COMPLIANT_FLAG;
 
@@ -108,7 +108,7 @@ namespace RegenParser
     public:
         /// @brief Represents a char-by-char parser.
         /// @return Returns the AST representation of the given Regen expression.
-        static std::shared_ptr<RegenAST::ASTNode> ParseExpression(const std::string &expression);
+        static std::shared_ptr<RegenAST::Node> ParseExpression(const std::string &expression);
 
     protected:
         /// @brief Checks if there exists an escape sequence pointed by the given modifiable iterator and stores the character representation of the sequence in escapeSeqRef.
@@ -133,16 +133,16 @@ namespace RegenParser
         /// @brief Performs duplicate node checking and creates a new node when needed.
         /// WARNING: The method always returns nullptr on a failed duplicate node checks.
         /// @return Returns a shared pointer to a newly allocated if a new node is needed.
-        static std::shared_ptr<RegenAST::ASTNode> _createNode(AbstractNodeType absNodeType, int &id, std::shared_ptr<RegenAST::ASTNode> parentPtr);
+        static std::shared_ptr<RegenAST::Node> _createNode(AbstractNodeType absNodeType, int &id, std::shared_ptr<RegenAST::Node> parentPtr);
 
         /// @brief Initializes the NodeData container of a node in accordance with the given abstract node type. (acts as the pre-defined character class initializer)
-        static void _initNode(std::shared_ptr<RegenAST::ASTNode> nodePtr, AbstractNodeType absNodeType);
+        static void _initNode(std::shared_ptr<RegenAST::Node> nodePtr, AbstractNodeType absNodeType);
 
         /// @brief Performs fake-range checking and initializes the NodeData container of a node to the given range. (acts both as the range custom character class initializer and custom initializer)
-        static void _initNode(std::shared_ptr<RegenAST::ASTNode> nodePtr, bool rangeStartChIsSet, bool rangeStopChIsSet, char rangeStartCh, char rangeStopCh);
+        static void _initNode(std::shared_ptr<RegenAST::Node> nodePtr, bool rangeStartChIsSet, bool rangeStopChIsSet, char rangeStartCh, char rangeStopCh);
 
         /// @brief Normalizes the AST's nodes. The method removes empty nodes and performs character class normalizations.
-        static void _normalizeAST(std::vector<std::shared_ptr<RegenAST::ASTNode>> &nodePtrVecRef);
+        static void _normalizeAST(std::vector<std::shared_ptr<RegenAST::Node>> &nodePtrVecRef);
     };
 }
 

@@ -2,7 +2,6 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <bitset>
 #include <memory>
 #include <fmt/core.h>
 #include <fmt/ostream.h>
@@ -23,31 +22,31 @@ const bool REGEN_REGEX_COMPLIANT_FLAG = false;
 
 const size_t NODE_ID_SET_SIZE = 50;
 
-std::string NodeTypeToStr(RegenAST::NodeType nodeType)
+std::string typeToStr(RegenAST::NodeData::Type type)
 {
 	static std::vector<std::string> CONVERSION_VEC{"ENTRY", "LITERAL", "CHCLASS"};
 
-	return CONVERSION_VEC.at((int)nodeType);
+	return CONVERSION_VEC.at((int)type);
 }
 
-void printASTNode(std::ostream &oStreamRef, std::shared_ptr<RegenAST::ASTNode> nodeRef)
+void printNode(std::ostream &oStreamRef, std::shared_ptr<RegenAST::Node> nodeRef)
 {
 	fmt::print(oStreamRef, "Node {}:\n", nodeRef->GetId());
-	fmt::print(oStreamRef, "\tType: {};\n", NodeTypeToStr(nodeRef->GetNodeDataPtr()->GetNodeType()));
+	fmt::print(oStreamRef, "\tType: {};\n", typeToStr(nodeRef->GetNodeDataPtr()->GetType()));
 
 	//! fmt::print throws an "invalid utf-8" exception for negated character classes
 	oStreamRef << "\tLiteral: " << nodeRef->GetNodeDataPtr()->GetLiteral() << '\n';
 
-	for (const auto &child : nodeRef->GetChildrenRef())
+	for (const auto &child : nodeRef->GetChildrenListRef())
 		fmt::print(oStreamRef, "\tChild: {};\n", child->GetId());
 }
 
-void traverseAST(std::ostream &oStreamRef, std::bitset<NODE_ID_SET_SIZE> &nodeIdSetRef, std::shared_ptr<RegenAST::ASTNode> node)
+void traverseAST(std::ostream &oStreamRef, std::bitset<NODE_ID_SET_SIZE> &nodeIdSetRef, std::shared_ptr<RegenAST::Node> node)
 {
 	nodeIdSetRef.set(node->GetId(), true);
-	printASTNode(oStreamRef, node);
+	printNode(oStreamRef, node);
 
-	for (const auto &child : node->GetChildrenRef())
+	for (const auto &child : node->GetChildrenListRef())
 		if (!nodeIdSetRef.test(child->GetId()))
 			traverseAST(oStreamRef, nodeIdSetRef, child);
 }

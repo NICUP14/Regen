@@ -4,8 +4,8 @@
 #define FMT_HEADER_ONLY
 #include <fmt/color.h>
 
-#ifndef REGEN_OUTPUT_HEADER_H
-#define REGEN_OUTPUT_HEADER_H
+#ifndef REGEN_OUTPUT_HEADER
+#define REGEN_OUTPUT_HEADER
 
 /// @brief Encapsulates all the custom exception/warning messages and methods.
 namespace RegenOutput

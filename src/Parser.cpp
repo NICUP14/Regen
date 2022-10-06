@@ -436,23 +436,23 @@ void RegenParser::Parser::_setAbsNodeTypeNFlags(TokenType tokenType, ContextGrou
     }
 }
 
-std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::_createNode(AbstractNodeType absNodeType, int &id, std::shared_ptr<RegenAST::ASTNode> parentPtr)
+std::shared_ptr<RegenAST::Node> RegenParser::Parser::_createNode(AbstractNodeType absNodeType, int &id, std::shared_ptr<RegenAST::Node> parentPtr)
 {
     /// @brief Shorthand lambda for returning a pointer to a newly allocated node.
-    static auto allocNode = [](int nodeId, RegenAST::NodeType nodeType, std::shared_ptr<RegenAST::ASTNode> nodeParentPtr)
+    static auto allocNode = [](int nodeId, RegenAST::NodeData::Type type, std::shared_ptr<RegenAST::Node> nodeParentPtr)
     {
-        auto childRef = std::make_shared<RegenAST::ASTNode>(nodeId, nodeType, nodeParentPtr);
-        nodeParentPtr->GetChildrenRef().emplace_back(childRef);
+        auto childRef = std::make_shared<RegenAST::Node>(nodeId, type, nodeParentPtr);
+        nodeParentPtr->GetChildrenListRef().emplace_back(childRef);
 
         return childRef;
     };
 
     /// Creates character class nodes when needed.
     if (absNodeType == AbstractNodeType::LITERAL &&
-        parentPtr->GetNodeDataPtr()->GetNodeType() != RegenAST::NodeType::LITERAL)
+        parentPtr->GetNodeDataPtr()->GetType() != RegenAST::NodeData::Type::LITERAL)
     {
         id++;
-        return allocNode(id, RegenAST::NodeType::LITERAL, parentPtr);
+        return allocNode(id, RegenAST::NodeData::Type::LITERAL, parentPtr);
     }
 
     /// Creates literal nodes when needed.
@@ -460,13 +460,13 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::_createNode(AbstractNode
         absNodeType < AbstractNodeType::GROUP)
     {
         id++;
-        return allocNode(id, RegenAST::NodeType::CHCLASS, parentPtr);
+        return allocNode(id, RegenAST::NodeData::Type::CHCLASS, parentPtr);
     }
 
     return nullptr;
 }
 
-void RegenParser::Parser::_initNode(std::shared_ptr<RegenAST::ASTNode> nodePtr, AbstractNodeType absNodeType)
+void RegenParser::Parser::_initNode(std::shared_ptr<RegenAST::Node> nodePtr, AbstractNodeType absNodeType)
 {
     auto &chClassDataRef = RegenAST::CastToChClassNodeData(*nodePtr->GetNodeDataPtr());
 
@@ -551,7 +551,7 @@ void RegenParser::Parser::_initNode(std::shared_ptr<RegenAST::ASTNode> nodePtr, 
     }
 }
 
-void RegenParser::Parser::_initNode(std::shared_ptr<RegenAST::ASTNode> nodePtr, bool rangeStartChIsSet, bool rangeStopChIsSet, char rangeStartCh, char rangeStopCh)
+void RegenParser::Parser::_initNode(std::shared_ptr<RegenAST::Node> nodePtr, bool rangeStartChIsSet, bool rangeStopChIsSet, char rangeStartCh, char rangeStopCh)
 {
 
     const auto &chClassDataRef = RegenAST::CastToChClassNodeData(*nodePtr->GetNodeDataPtr());
@@ -601,16 +601,16 @@ void RegenParser::Parser::_initNode(std::shared_ptr<RegenAST::ASTNode> nodePtr, 
     }
 }
 
-void RegenParser::Parser::_normalizeAST(std::vector<std::shared_ptr<RegenAST::ASTNode>> &nodePtrVec)
+void RegenParser::Parser::_normalizeAST(std::vector<std::shared_ptr<RegenAST::Node>> &nodePtrVec)
 {
     /// @brief Shorthand lambda for completely removing a node from the AST.
-    static auto removeNodeFromAST = [](std::shared_ptr<RegenAST::ASTNode> nodePtr)
+    static auto removeNodeFromAST = [](std::shared_ptr<RegenAST::Node> nodePtr)
     {
         auto parentPtr = nodePtr->GetParentPtr();
 
-        parentPtr->GetChildrenRef().remove(nodePtr);
-        for (const auto &childRef : nodePtr->GetChildrenRef())
-            parentPtr->GetChildrenRef().emplace_back(childRef);
+        parentPtr->GetChildrenListRef().remove(nodePtr);
+        for (const auto &childRef : nodePtr->GetChildrenListRef())
+            parentPtr->GetChildrenListRef().emplace_back(childRef);
     };
 
     auto iter = nodePtrVec.begin();
@@ -618,7 +618,7 @@ void RegenParser::Parser::_normalizeAST(std::vector<std::shared_ptr<RegenAST::AS
     {
         /// Performs the character class normalization procedure.
         if (auto nodeDataRef = (*iter)->GetNodeDataPtr();
-            nodeDataRef->GetNodeType() == RegenAST::NodeType::CHCLASS)
+            nodeDataRef->GetType() == RegenAST::NodeData::Type::CHCLASS)
         {
             RegenAST::CastToChClassNodeData(*nodeDataRef).Normalize();
 
@@ -640,12 +640,12 @@ void RegenParser::Parser::_normalizeAST(std::vector<std::shared_ptr<RegenAST::AS
     }
 }
 
-std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::ParseExpression(const std::string &expression)
+std::shared_ptr<RegenAST::Node> RegenParser::Parser::ParseExpression(const std::string &expression)
 {
-    auto rootPtr = std::make_shared<RegenAST::ASTNode>(0, RegenAST::NodeType::ENTRY, nullptr);
+    auto rootPtr = std::make_shared<RegenAST::Node>(0, RegenAST::NodeData::Type::ENTRY, nullptr);
 
     /// The root node is defined in a circular manner.
-    rootPtr->SetParent(rootPtr);
+    rootPtr->SetParentPtr(rootPtr);
 
     if (expression.empty())
         return rootPtr;
@@ -668,8 +668,8 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::ParseExpression(const st
     //? AST-related auxiliary variable declarations placeholder.
     int currId = 0;
     std::stack<ContextGroup> ctxGrStack;
-    std::shared_ptr<RegenAST::ASTNode> nodePtr = rootPtr;
-    std::vector<std::shared_ptr<RegenAST::ASTNode>> nodePtrVec;
+    std::shared_ptr<RegenAST::Node> nodePtr = rootPtr;
+    std::vector<std::shared_ptr<RegenAST::Node>> nodePtrVec;
 
     auto iter = expression.begin();
     auto endIter = expression.end();
@@ -736,21 +736,24 @@ std::shared_ptr<RegenAST::ASTNode> RegenParser::Parser::ParseExpression(const st
 
             nodePtr->GetNodeDataPtr()->Append(resultCh);
             iter++;
+        }
 
-            //? Range initialization procedure placeholder.
-            if (chClassRangeFlag)
-            {
-                _initNode(
-                    nodePtr,
-                    rangeStartChIsSet,
-                    rangeStopChIsSet,
-                    rangeStartCh,
-                    rangeStopCh);
+        //? Range initialization procedure placeholder.
+        if (chClassRangeFlag)
+        {
+            if (tokenType == TokenType::CHCLASS_RANGE)
+                continue;
 
-                rangeStartChIsSet = false;
-                rangeStopChIsSet = false;
-                chClassRangeFlag = false;
-            }
+            _initNode(
+                nodePtr,
+                rangeStartChIsSet,
+                rangeStopChIsSet,
+                rangeStartCh,
+                rangeStopCh);
+
+            rangeStartChIsSet = false;
+            rangeStopChIsSet = false;
+            chClassRangeFlag = false;
         }
     }
 
